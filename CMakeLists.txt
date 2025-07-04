@@ -15,7 +15,7 @@ set(TARGET_NAME mono_vo_component)
 add_library(${TARGET_NAME} SHARED src/mono_vo.cpp)
 
 rclcpp_components_register_node(${TARGET_NAME}
-  PLUGIN "mono_vo::MonoVo"
+  PLUGIN "mono_vo::MonoVO"
   EXECUTABLE mono_vo
 )
 

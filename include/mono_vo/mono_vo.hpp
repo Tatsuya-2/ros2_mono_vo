@@ -12,7 +12,7 @@ namespace mono_vo
 /**
  * @brief MonoVo class
  */
-class MonoVo : public rclcpp::Node
+class MonoVO : public rclcpp::Node
 {
 public:
   /**
@@ -20,7 +20,7 @@ public:
    *
    * @param options node options
    */
-  explicit MonoVo(const rclcpp::NodeOptions & options);
+  explicit MonoVO(const rclcpp::NodeOptions & options);
 
 private:
   /**
