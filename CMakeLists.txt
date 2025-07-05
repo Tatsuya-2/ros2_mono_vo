@@ -8,7 +8,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
-find_package(std_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 
 set(TARGET_NAME mono_vo_component)
 
@@ -28,7 +29,8 @@ target_compile_features(${TARGET_NAME} PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(${TARGET_NAME}
   rclcpp
   rclcpp_components
-  std_msgs
+  sensor_msgs
+  geometry_msgs
 )
 
 install(TARGETS ${TARGET_NAME}
