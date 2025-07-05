@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "mono_vo/initializer.hpp"
+
 namespace mono_vo
 {
 
@@ -24,6 +26,8 @@ private:
 private:
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
+
+  Initializer initializer_;
 };
 
 }  // namespace mono_vo

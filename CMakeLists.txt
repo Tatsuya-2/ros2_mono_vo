@@ -10,6 +10,8 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
 set(TARGET_NAME mono_vo_component)
 
@@ -24,6 +26,9 @@ target_include_directories(${TARGET_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
+  ${OpenCV_INCLUDE_DIRS}
+)
 target_compile_features(${TARGET_NAME} PUBLIC c_std_99 cxx_std_17)
 
 ament_target_dependencies(${TARGET_NAME}
@@ -31,6 +36,11 @@ ament_target_dependencies(${TARGET_NAME}
   rclcpp_components
   sensor_msgs
   geometry_msgs
+  cv_bridge
+)
+
+target_link_libraries(${TARGET_NAME}
+ ${OpenCV_LIBS}
 )
 
 install(TARGETS ${TARGET_NAME}

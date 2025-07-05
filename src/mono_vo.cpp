@@ -1,3 +1,4 @@
+#include <cv_bridge/cv_bridge.hpp>
 #include <functional>
 #include <mono_vo/mono_vo.hpp>
 
@@ -21,6 +22,17 @@ void MonoVO::setup()
 void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 {
   RCLCPP_INFO(this->get_logger(), "Image message received at ts: '%d'", msg->header.stamp.sec);
+
+  cv_bridge::CvImageConstPtr cv_ptr;
+  try {
+    cv_ptr = cv_bridge::toCvShare(msg, sensor_msgs::image_encodings::BGR8);
+  } catch (cv_bridge::Exception & e) {
+    RCLCPP_ERROR(get_logger(), "cv_bridge exception: %s", e.what());
+    return;
+  }
+  cv::Mat image = cv_ptr->image;
+
+  initializer_.update(image);
 }
 
 }  // namespace mono_vo
