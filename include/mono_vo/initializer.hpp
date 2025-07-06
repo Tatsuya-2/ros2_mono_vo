@@ -55,11 +55,11 @@ public:
 
   void update(const cv::Mat & grey_img)
   {
-    first_frame_ = good_first_frame(grey_img);
-    if (!first_frame_) {
-      return;
+    if (!first_frame_.has_value()) {
+      first_frame_ = good_first_frame(grey_img);
+      if (!first_frame_.has_value()) return;
+      std::cout << "found good first frame" << std::endl;
     }
-    std::cout << "found good first frame" << std::endl;
 
     std::vector<cv::KeyPoint> keypoints;
     cv::Mat descriptors;
