@@ -2,7 +2,9 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <memory>
+#include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/camera_info.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <std_msgs/msg/int32.hpp>
 #include <string>
@@ -23,11 +25,16 @@ private:
 
   void image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg);
 
+  void camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg);
+
 private:
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
 
   Initializer initializer_;
+
+  std::optional<cv::Matx33d> K_;
 };
 
 }  // namespace mono_vo
