@@ -91,21 +91,25 @@ public:
       pts2.push_back(keypoints[match.trainIdx].pt);
     }
 
-    cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC, 0.999, 1.0, cv::Mat());
+    std::cout << " K: " << K << std::endl;
+
+    cv::Mat mask;
+    cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC, 0.999, 1.0, mask);
 
     if (E.empty()) {
       std::cout << "Essential matrix estimation failed" << std::endl;
       return;
     }
-    std::cout << "Essential matrix estimated" << std::endl;
+    std::cout << "Essential matrix estimated\n" << E << std::endl;
+    std::cout << "Mask" << mask << std::endl;
 
     cv::Mat R, t;
-    int inliers = cv::recoverPose(E, pts1, pts2, K, R, t, cv::Mat());
+    int inliers = cv::recoverPose(E, pts1, pts2, K, R, t, mask);
 
     std::cout << "inliers: " << inliers << std::endl;
 
     // Check inlier ratio
-    double inlier_ratio = (double)inliers / pts1.size();
+    double inlier_ratio = static_cast<double>(inliers) / pts1.size();
     if (inlier_ratio < 0.3) {
       std::cout << "Too few inliers: " << inlier_ratio << std::endl;
       return;
