@@ -23,11 +23,13 @@ void MonoVO::setup()
 
   pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/camera/pose", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", pose_pub_->get_topic_name());
+
+  RCLCPP_INFO(this->get_logger(), "Node initialized");
 }
 
 void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 {
-  RCLCPP_INFO(this->get_logger(), "Image message received at ts: '%d'", msg->header.stamp.sec);
+  RCLCPP_DEBUG(this->get_logger(), "Image message received at ts: '%d'", msg->header.stamp.sec);
 
   if (!K_.has_value()) {
     RCLCPP_INFO(this->get_logger(), "Waiting for camera info");
@@ -48,7 +50,7 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
 void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg)
 {
-  RCLCPP_INFO(
+  RCLCPP_DEBUG(
     this->get_logger(), "Camera info message received at ts: '%d'", msg->header.stamp.sec);
   if (K_.has_value()) return;
   K_ = cv::Matx33d(
