@@ -92,7 +92,7 @@ public:
     return true;
   }
 
-  bool try_initializing(const cv::Mat & grey_img, const cv::Matx33d & K)
+  bool try_initializing(const cv::Mat & grey_img, const cv::Mat & K)
   {
     FrameData cur_frame;
     cur_frame.image = grey_img;
@@ -153,6 +153,94 @@ public:
       }
 
       RCLCPP_INFO(logger_, "Parallax check passed");
+
+      // find essential matrix
+      std::vector<uchar> E_mask;
+      cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC, 0.99, 1.0, E_mask);
+      RCLCPP_INFO(
+        logger_, "Found Essential Matrix with inlier ratio %lf",
+        static_cast<double>(cv::countNonZero(E_mask)) / pts1.size());
+
+      // decompose to get rotation and translation
+      cv::Mat R, t;
+      cv::recoverPose(E, pts1, pts2, K, R, t, E_mask);
+
+      // print R,t and inliers
+      std::cout << "R:\n" << R << std::endl;
+      std::cout << "t:\n" << t << std::endl;
+      std::cout << "Inlier  ratio:\n"
+                << static_cast<double>(cv::countNonZero(E_mask)) / pts1.size() << std::endl;
+
+      // get projection matrices
+      cv::Mat P_ref = cv::Mat::zeros(3, 4, CV_64F);
+      K.copyTo(P_ref(cv::Rect(0, 0, 3, 3)));  // P_ref = K * [I | 0]
+
+      cv::Mat P_cur = cv::Mat::zeros(3, 4, CV_64F);
+      R.copyTo(P_cur(cv::Rect(0, 0, 3, 3)));
+      t.copyTo(P_cur(cv::Rect(3, 0, 1, 3)));
+      P_cur = K * P_cur;  // P_cur = K * [R | t]
+
+      // triangulate points
+      cv::Mat pts4d_h;  // Output is 4xN matrix of homogeneous 3D points
+      cv::triangulatePoints(P_ref, P_cur, pts1, pts2, pts4d_h);
+
+      RCLCPP_INFO(logger_, "Triangulated %d 3D points", pts4d_h.cols);
+
+      // convert to cartesian
+      cv::Mat pts3d;
+      cv::convertPointsFromHomogeneous(pts4d_h.t(), pts3d);
+
+      // chirality check
+      // The 3D points are in the reference camera's coordinate system.
+      // We need to keep only the points that are:
+      // 1. In front of the reference camera (z > 0).
+      // 2. In front of the current camera (z > 0 after transformation).
+
+      std::vector<cv::Point3f> valid_3d_points;
+      std::vector<cv::Point2f> valid_keypoints_ref;     // To keep track of the original 2D points
+      std::vector<cv::Point2f> valid_keypoints_cur;     // that correspond to our valid 3D points
+      std::vector<bool> point_mask(pts3d.rows, false);  // A mask to track valid points
+
+      for (int i = 0; i < pts3d.rows; ++i) {
+        // The result of convertPointsFromHomogeneous is a Mat of CV_32FC3 (3-channel float)
+        // or a Mat of cv::Point3f. We'll access it as Point3f.
+        const cv::Point3f & p3d_ref = pts3d.at<cv::Point3f>(i);
+
+        // --- Check 1: Point is in front of the reference camera ---
+        // The point is already in the reference camera's frame.
+        if (p3d_ref.z <= 0) {
+          continue;  // Point is behind the first camera, discard.
+        }
+
+        // --- Check 2: Point is in front of the current camera ---
+        // Transform the 3D point into the current camera's coordinate system.
+        // The pose (R, t) transforms points from the current frame to the reference frame.
+        // p_ref = R * p_cur + t
+        // We need the inverse to get p_cur. Or simpler, `recoverPose` gives (R,t) such that
+        // a point X in the world (ref frame) is seen as R*X+t in the current camera's frame.
+        cv::Mat p3d_ref_mat = (cv::Mat_<double>(3, 1) << p3d_ref.x, p3d_ref.y, p3d_ref.z);
+        cv::Mat p3d_cur_mat = R * p3d_ref_mat + t;
+
+        if (p3d_cur_mat.at<double>(2, 0) <= 0) {
+          continue;  // Point is behind the second camera, discard.
+        }
+
+        // If both checks pass, this is a valid point.
+        point_mask[i] = true;
+        valid_3d_points.push_back(p3d_ref);
+
+        // Also save the corresponding 2D keypoints. This is very useful for tracking.
+        // NOTE: You must use the original `pts1` and `pts2` from BEFORE you filtered them
+        // with the essential matrix mask (`E_mask`), or apply the same mask here.
+        // Assuming `pts1` and `pts2` here are the RANSAC inliers for E.
+        valid_keypoints_ref.push_back(pts1[i]);
+        valid_keypoints_cur.push_back(pts2[i]);
+      }
+
+      RCLCPP_INFO(
+        logger_, "Chirality check complete. Kept %zu / %d valid points.", valid_3d_points.size(),
+        pts3d.rows);
+
       cv::imshow("Matches", img_matches);
       cv::waitKey(0);
 
