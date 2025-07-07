@@ -45,7 +45,7 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
   }
   cv::Mat image = cv_ptr->image;
 
-  initializer_.update(image, K_.value());
+  initializer_.try_initializing(image, K_.value());
 }
 
 void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg)
