@@ -53,9 +53,8 @@ void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstShare
   RCLCPP_DEBUG(
     this->get_logger(), "Camera info message received at ts: '%d'", msg->header.stamp.sec);
   if (K_.has_value()) return;
-  K_ = cv::Matx33d(
-    msg->k[0], msg->k[1], msg->k[2], msg->k[3], msg->k[4], msg->k[5], msg->k[6], msg->k[7],
-    msg->k[8]);
+
+  K_ = cv::Mat(3, 3, CV_64F, const_cast<double *>(msg->k.data())).clone();
 }
 
 }  // namespace mono_vo

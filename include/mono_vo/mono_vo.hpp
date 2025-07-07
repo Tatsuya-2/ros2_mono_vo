@@ -34,7 +34,7 @@ private:
 
   Initializer initializer_;
 
-  std::optional<cv::Matx33d> K_;
+  std::optional<cv::Mat> K_;
 };
 
 }  // namespace mono_vo
