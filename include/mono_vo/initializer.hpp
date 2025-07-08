@@ -155,21 +155,21 @@ public:
       RCLCPP_INFO(logger_, "Parallax check passed");
 
       // find essential matrix
-      std::vector<uchar> E_mask;
-      cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC, 0.99, 1.0, E_mask);
+      std::vector<uchar> inlier_mask;
+      cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC, 0.99, 1.0, inlier_mask);
       RCLCPP_INFO(
         logger_, "Found Essential Matrix with inlier ratio %lf",
-        static_cast<double>(cv::countNonZero(E_mask)) / pts1.size());
+        static_cast<double>(cv::countNonZero(inlier_mask)) / pts1.size());
 
       // decompose to get rotation and translation
       cv::Mat R, t;
-      cv::recoverPose(E, pts1, pts2, K, R, t, E_mask);
+      cv::recoverPose(E, pts1, pts2, K, R, t, inlier_mask);
 
       // print R,t and inliers
       std::cout << "R:\n" << R << std::endl;
       std::cout << "t:\n" << t << std::endl;
       std::cout << "Inlier  ratio:\n"
-                << static_cast<double>(cv::countNonZero(E_mask)) / pts1.size() << std::endl;
+                << static_cast<double>(cv::countNonZero(inlier_mask)) / pts1.size() << std::endl;
 
       // get projection matrices
       cv::Mat P_ref = cv::Mat::zeros(3, 4, CV_64F);
@@ -180,9 +180,19 @@ public:
       t.copyTo(P_cur(cv::Rect(3, 0, 1, 3)));
       P_cur = K * P_cur;  // P_cur = K * [R | t]
 
+      // filter points
+      std::vector<cv::Point2f> inlier_pts1;
+      std::vector<cv::Point2f> inlier_pts2;
+      for (int i = 0; i < inlier_mask.size(); ++i) {
+        if (inlier_mask[i]) {
+          inlier_pts1.push_back(pts1[i]);
+          inlier_pts2.push_back(pts2[i]);
+        }
+      }
+
       // triangulate points
       cv::Mat pts4d_h;  // Output is 4xN matrix of homogeneous 3D points
-      cv::triangulatePoints(P_ref, P_cur, pts1, pts2, pts4d_h);
+      cv::triangulatePoints(P_ref, P_cur, inlier_pts1, inlier_pts2, pts4d_h);
 
       RCLCPP_INFO(logger_, "Triangulated %d 3D points", pts4d_h.cols);
 
@@ -233,8 +243,8 @@ public:
         // NOTE: You must use the original `pts1` and `pts2` from BEFORE you filtered them
         // with the essential matrix mask (`E_mask`), or apply the same mask here.
         // Assuming `pts1` and `pts2` here are the RANSAC inliers for E.
-        valid_keypoints_ref.push_back(pts1[i]);
-        valid_keypoints_cur.push_back(pts2[i]);
+        valid_keypoints_ref.push_back(inlier_pts1[i]);
+        valid_keypoints_cur.push_back(inlier_pts2[i]);
       }
 
       RCLCPP_INFO(
