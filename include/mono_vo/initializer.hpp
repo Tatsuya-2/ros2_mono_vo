@@ -239,10 +239,7 @@ public:
         point_mask[i] = true;
         valid_3d_points.push_back(p3d_ref);
 
-        // Also save the corresponding 2D keypoints. This is very useful for tracking.
-        // NOTE: You must use the original `pts1` and `pts2` from BEFORE you filtered them
-        // with the essential matrix mask (`E_mask`), or apply the same mask here.
-        // Assuming `pts1` and `pts2` here are the RANSAC inliers for E.
+        // keypoints for tracking
         valid_keypoints_ref.push_back(inlier_pts1[i]);
         valid_keypoints_cur.push_back(inlier_pts2[i]);
       }
