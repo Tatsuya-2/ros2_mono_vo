@@ -1,9 +1,12 @@
 #pragma once
 
+#include <memory>
 #include <opencv2/opencv.hpp>
 #include <optional>
 #include <rclcpp/logging.hpp>
 #include <vector>
+
+#include "mono_vo/map.hpp"
 
 namespace mono_vo
 {
@@ -24,8 +27,9 @@ public:
     INITIALIZED
   };
 
-  Initializer(rclcpp::Logger logger = rclcpp::get_logger("Initializer"))
-  : logger_(logger),
+  Initializer(std::shared_ptr<Map> map, rclcpp::Logger logger = rclcpp::get_logger("Initializer"))
+  : map_(map),
+    logger_(logger),
     state_(State::OBTAINING_REF),
     distribution_thresh_(0.5f),
     matcher_(cv::BFMatcher(cv::NORM_HAMMING))
@@ -140,9 +144,14 @@ public:
         img_matches);
 
       std::vector<cv::Point2f> pts1, pts2;
+      std::vector<cv::Mat> descriptors;
+      pts1.reserve(good_matches.size());
+      pts2.reserve(good_matches.size());
+      descriptors.reserve(good_matches.size());
       for (const auto & match : good_matches) {
         pts1.push_back(ref_frame_.keypoints[match.queryIdx].pt);
         pts2.push_back(cur_frame.keypoints[match.trainIdx].pt);
+        descriptors.push_back(ref_frame_.descriptors.row(match.queryIdx));
       }
 
       if (!check_parallax(pts1, pts2)) {
@@ -165,11 +174,13 @@ public:
       cv::Mat R, t;
       cv::recoverPose(E, pts1, pts2, K, R, t, inlier_mask);
 
+      uint32_t num_inliers = cv::countNonZero(inlier_mask);
+
       // print R,t and inliers
       std::cout << "R:\n" << R << std::endl;
       std::cout << "t:\n" << t << std::endl;
       std::cout << "Inlier  ratio:\n"
-                << static_cast<double>(cv::countNonZero(inlier_mask)) / pts1.size() << std::endl;
+                << static_cast<double>(num_inliers) / pts1.size() << std::endl;
 
       // get projection matrices
       cv::Mat P_ref = cv::Mat::zeros(3, 4, CV_64F);
@@ -181,18 +192,23 @@ public:
       P_cur = K * P_cur;  // P_cur = K * [R | t]
 
       // filter points
-      std::vector<cv::Point2f> inlier_pts1;
-      std::vector<cv::Point2f> inlier_pts2;
-      for (int i = 0; i < inlier_mask.size(); ++i) {
+      std::vector<cv::Point2f> inlier_pts_ref;
+      std::vector<cv::Point2f> inlier_pts_cur;
+      std::vector<cv::Mat> inlier_descriptors;
+      inlier_pts_ref.reserve(num_inliers);
+      inlier_pts_cur.reserve(num_inliers);
+      inlier_descriptors.reserve(num_inliers);
+      for (size_t i = 0; i < inlier_mask.size(); ++i) {
         if (inlier_mask[i]) {
-          inlier_pts1.push_back(pts1[i]);
-          inlier_pts2.push_back(pts2[i]);
+          inlier_pts_ref.push_back(pts1[i]);
+          inlier_pts_cur.push_back(pts2[i]);
+          inlier_descriptors.push_back(descriptors[i]);
         }
       }
 
       // triangulate points
       cv::Mat pts4d_h;  // Output is 4xN matrix of homogeneous 3D points
-      cv::triangulatePoints(P_ref, P_cur, inlier_pts1, inlier_pts2, pts4d_h);
+      cv::triangulatePoints(P_ref, P_cur, inlier_pts_ref, inlier_pts_cur, pts4d_h);
 
       RCLCPP_INFO(logger_, "Triangulated %d 3D points", pts4d_h.cols);
 
@@ -206,46 +222,37 @@ public:
       // 1. In front of the reference camera (z > 0).
       // 2. In front of the current camera (z > 0 after transformation).
 
-      std::vector<cv::Point3f> valid_3d_points;
-      std::vector<cv::Point2f> valid_keypoints_ref;     // To keep track of the original 2D points
-      std::vector<cv::Point2f> valid_keypoints_cur;     // that correspond to our valid 3D points
-      std::vector<bool> point_mask(pts3d.rows, false);  // A mask to track valid points
+      size_t num_valid_points = 0;
 
       for (int i = 0; i < pts3d.rows; ++i) {
-        // The result of convertPointsFromHomogeneous is a Mat of CV_32FC3 (3-channel float)
-        // or a Mat of cv::Point3f. We'll access it as Point3f.
         const cv::Point3f & p3d_ref = pts3d.at<cv::Point3f>(i);
 
         // --- Check 1: Point is in front of the reference camera ---
-        // The point is already in the reference camera's frame.
         if (p3d_ref.z <= 0) {
-          continue;  // Point is behind the first camera, discard.
+          continue;
         }
 
         // --- Check 2: Point is in front of the current camera ---
         // Transform the 3D point into the current camera's coordinate system.
-        // The pose (R, t) transforms points from the current frame to the reference frame.
-        // p_ref = R * p_cur + t
-        // We need the inverse to get p_cur. Or simpler, `recoverPose` gives (R,t) such that
-        // a point X in the world (ref frame) is seen as R*X+t in the current camera's frame.
         cv::Mat p3d_ref_mat = (cv::Mat_<double>(3, 1) << p3d_ref.x, p3d_ref.y, p3d_ref.z);
         cv::Mat p3d_cur_mat = R * p3d_ref_mat + t;
 
         if (p3d_cur_mat.at<double>(2, 0) <= 0) {
-          continue;  // Point is behind the second camera, discard.
+          continue;
         }
 
-        // If both checks pass, this is a valid point.
-        point_mask[i] = true;
-        valid_3d_points.push_back(p3d_ref);
+        map_->add_landmark(p3d_ref, descriptors[i], inlier_pts_cur[i]);
+        num_valid_points++;
+      }
 
-        // keypoints for tracking
-        valid_keypoints_ref.push_back(inlier_pts1[i]);
-        valid_keypoints_cur.push_back(inlier_pts2[i]);
+      // valid points should be enough for pnp otherwise reset
+      if (num_valid_points < 4) {
+        reset();
+        return false;
       }
 
       RCLCPP_INFO(
-        logger_, "Chirality check complete. Kept %zu / %d valid points.", valid_3d_points.size(),
+        logger_, "Chirality check complete. Kept %zu / %d valid points.", num_valid_points,
         pts3d.rows);
 
       cv::imshow("Matches", img_matches);
@@ -254,9 +261,11 @@ public:
       state_ = State::INITIALIZED;
       return true;
     }
+    return false;
   }
 
 private:
+  std::shared_ptr<Map> map_;
   rclcpp::Logger logger_;
   State state_;
   FrameData ref_frame_;
