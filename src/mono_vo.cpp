@@ -5,7 +5,11 @@
 namespace mono_vo
 {
 
-MonoVO::MonoVO(const rclcpp::NodeOptions & options) : Node("mono_vo", options) { this->setup(); }
+MonoVO::MonoVO(const rclcpp::NodeOptions & options)
+: Node("mono_vo", options), map_(std::make_shared<Map>()), initializer_(map_)
+{
+  this->setup();
+}
 
 void MonoVO::setup()
 {
@@ -45,7 +49,11 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
   }
   cv::Mat image = cv_ptr->image;
 
-  initializer_.try_initializing(image, K_.value());
+  if (!initializer_.is_initalized()) {
+    initializer_.try_initializing(image, K_.value());
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Initialized");
 }
 
 void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg)

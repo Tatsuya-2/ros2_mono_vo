@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "mono_vo/initializer.hpp"
+#include "mono_vo/map.hpp"
 
 namespace mono_vo
 {
@@ -32,6 +33,7 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
 
+  std::shared_ptr<Map> map_;
   Initializer initializer_;
 
   std::optional<cv::Mat> K_;
