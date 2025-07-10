@@ -36,7 +36,7 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
   RCLCPP_DEBUG(this->get_logger(), "Image message received at ts: '%d'", msg->header.stamp.sec);
 
   if (!K_.has_value()) {
-    RCLCPP_INFO(this->get_logger(), "Waiting for camera info");
+    RCLCPP_WARN(this->get_logger(), "Waiting for camera info to be published");
     return;
   }
 
