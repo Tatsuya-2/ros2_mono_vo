@@ -21,7 +21,7 @@ class Map
 public:
   Map() = default;
 
-  void add_new_landmark(
+  void add_landmark(
     const cv::Point3f & point, const cv::Mat & descriptor, const cv::Point2f & keypoint)
   {
     map_landmarks_[next_landmark_id_] = {point, descriptor.clone()};
