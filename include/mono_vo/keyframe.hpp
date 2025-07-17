@@ -13,6 +13,7 @@ namespace mono_vo
 class KeyFrame
 {
 public:
+  using Ptr = std::shared_ptr<KeyFrame>;
   KeyFrame(long id, const cv::Affine3d & pose) : id_(id), pose_wc_(pose) {}
 
   // A constructor to create a KeyFrame from a temporary Frame object
@@ -22,6 +23,8 @@ public:
     pose_wc_ = frame.get_pose();
     observations_ = frame.get_observations();
   }
+
+  long get_id() const { return id_; }
 
   void set_observations(const std::vector<Observation> & observations)
   {
