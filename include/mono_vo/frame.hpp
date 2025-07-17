@@ -7,50 +7,39 @@
 
 namespace mono_vo
 {
-struct Observation
-{
-  long landmark_id;
-  cv::Point2f pt2d;
-  cv::Mat descriptor;
-};
-
 // Temporary frame to store data before it is added to the map
 class Frame
 {
 public:
-  Frame(const cv::Mat & image, const cv::Affine3d & pose = cv::Affine3d())
-  : id_(next_frame_id_++), image_(image.clone()), pose_wc_(pose)
+  Frame(const cv::Mat & image) : id(next_id_++), image(image.clone()) {}
+
+  void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id)
   {
+    keypoints.push_back(keypoint);
+    descriptors.push_back(descriptor);
+    landmark_ids.push_back(landmark_id);
   }
 
-  void set_observations(const std::vector<Observation> & observations)
+  std::vector<cv::Point2f> get_points_2d() const
   {
-    observations_ = observations;
-  }
-
-  // Helper to get 2D points for optical flow
-  std::vector<cv::Point2f> get_observed_points() const
-  {
-    std::vector<cv::Point2f> points;
-    points.reserve(observations_.size());
-    for (const auto & obs : observations_) {
-      points.push_back(obs.pt2d);
+    std::vector<cv::Point2f> points_2d;
+    points_2d.resize(keypoints.size());
+    for (size_t i = 0; i < keypoints.size(); i++) {
+      points_2d[i] = keypoints[i].pt;
     }
-    return points;
+    return points_2d;
   }
 
-  const std::vector<Observation> & get_observations() const { return observations_; }
-
-  const cv::Affine3d & get_pose() const { return pose_wc_; }
+  long id;
+  cv::Mat image;
+  cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
+  std::vector<cv::KeyPoint> keypoints;
+  cv::Mat descriptors;
+  std::vector<long> landmark_ids;
 
 private:
-  static long next_frame_id_;
-
-  long id_;
-  cv::Mat image_;
-  cv::Affine3d pose_wc_;  // Pose of the camera in the world (T_wc)
-  std::vector<Observation> observations_;
+  static long next_id_;
 };
 
-long Frame::next_frame_id_ = 0;
+long Frame::next_id_ = 0;
 }  // namespace mono_vo
