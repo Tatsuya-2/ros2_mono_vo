@@ -2,64 +2,38 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "mono_vo/frame.hpp"
+#include "mono_vo/keyframe.hpp"
+#include "mono_vo/landmark.hpp"
+
 namespace mono_vo
 {
-struct Landmark
-{
-  cv::Point3f pose;
-  cv::Mat descriptor;
-};
-
-struct TrackedKP
-{
-  long landmark_id;
-  cv::Point2f pt2d;
-};
-
 class Map
 {
 public:
   Map() = default;
 
-  void add_landmark(
-    const cv::Point3f & point, const cv::Mat & descriptor, const cv::Point2f & keypoint)
+  void add_landmark(const Landmark & landmark) { landmarks_[landmark.id] = landmark; }
+
+  const Landmark & get_landmark(long id) { return landmarks_.at(id); }
+
+  void add_keyframe(const std::shared_ptr<KeyFrame> & keyframe)
   {
-    map_landmarks_[next_landmark_id_] = {point, descriptor.clone()};
-    active_kps_.push_back({next_landmark_id_, keypoint});
-    next_landmark_id_++;
+    keyframes_[keyframe->get_id()] = keyframe;
   }
 
-  // Returns a pair of points3d and keypoints
-  void get_point_keypoint_pairs(
-    std::vector<cv::Point3f> & points, std::vector<cv::Point2f> & keypoints) const
-  {
-    points.clear();
-    keypoints.clear();
+  const KeyFrame::Ptr & get_keyframe(long id) { return keyframes_.at(id); }
 
-    points.reserve(active_kps_.size());
-    keypoints.reserve(active_kps_.size());
+  const std::map<long, Landmark> & get_all_landmarks() const { return landmarks_; }
 
-    for (auto & kp : active_kps_) {
-      points.push_back(map_landmarks_.at(kp.landmark_id).pose);
-      keypoints.push_back(kp.pt2d);
-    }
-  }
+  const std::map<long, KeyFrame::Ptr> & get_all_keyframes() const { return keyframes_; }
 
-  void update_active_kps(const std::vector<TrackedKP> & kps) { active_kps_ = kps; }
+  size_t num_landmarks() const { return landmarks_.size(); }
 
-  const std::vector<TrackedKP> & get_active_kps() const { return active_kps_; }
-
-  void update_pose(const cv::Affine3d & pose) { current_pose_ = pose; }
-
-  cv::Affine3d get_pose() const { return current_pose_; }
-
-  void set_last_frame(const cv::Mat & frame) { last_frame_ = frame; }
+  size_t num_keyframes() const { return keyframes_.size(); }
 
 private:
-  std::map<long, Landmark> map_landmarks_;
-  std::vector<TrackedKP> active_kps_;
-  cv::Mat last_frame_;
-  cv::Affine3d current_pose_;
-  long next_landmark_id_ = 0;
+  std::map<long, Landmark> landmarks_;
+  std::map<long, KeyFrame::Ptr> keyframes_;
 };
 }  // namespace mono_vo
