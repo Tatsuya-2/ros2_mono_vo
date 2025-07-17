@@ -11,6 +11,7 @@ struct Observation
 {
   long landmark_id;
   cv::Point2f pt2d;
+  cv::Mat descriptor;
 };
 
 // Temporary frame to store data before it is added to the map
