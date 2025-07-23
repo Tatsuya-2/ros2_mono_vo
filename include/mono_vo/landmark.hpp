@@ -7,7 +7,7 @@ namespace mono_vo
 class Landmark
 {
 public:
-  Landmark(const cv::Point3f & pose_w, const cv::Mat & descriptor)
+  explicit Landmark(const cv::Point3f & pose_w, const cv::Mat & descriptor)
   : id(next_id_++), pose_w(pose_w), descriptor(descriptor)
   {
   }
