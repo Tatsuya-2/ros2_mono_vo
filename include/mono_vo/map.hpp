@@ -17,7 +17,7 @@ public:
   void add_landmark(const Landmark & landmark)
   {
     RCLCPP_INFO(logger_, "Adding landmark %ld", landmark.id);
-    landmarks_[landmark.id] = landmark;
+    landmarks_.emplace(landmark.id, landmark);
   }
 
   const Landmark & get_landmark(long id) { return landmarks_.at(id); }
@@ -25,7 +25,7 @@ public:
   void add_keyframe(const std::shared_ptr<KeyFrame> & keyframe)
   {
     RCLCPP_INFO(logger_, "Adding keyframe %ld", keyframe->id);
-    keyframes_[keyframe->id] = keyframe;
+    keyframes_.emplace(keyframe->id, keyframe);
   }
 
   const KeyFrame::Ptr & get_keyframe(long id) { return keyframes_.at(id); }
