@@ -32,7 +32,11 @@ public:
 
   void filter_observations_by_mask(const std::vector<uchar> & inlier_mask)
   {
-    if (keypoints.size() != inlier_mask.size() || descriptors.rows != inlier_mask.size()) {
+    if (
+      keypoints.size() != inlier_mask.size() ||
+      static_cast<size_t>(descriptors.rows) != inlier_mask.size()) {
+      std::cout << "keypoints: " << keypoints.size() << ", inlier mask: " << inlier_mask.size()
+                << ", descriptors: " << descriptors.rows << std::endl;
       throw std::runtime_error("Inlier mask, keypoints and descriptors must have the same size");
     }
     std::vector<cv::KeyPoint> in_kps;
