@@ -7,6 +7,18 @@
 
 namespace mono_vo
 {
+class Observation
+{
+public:
+  explicit Observation(
+    const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id = -1)
+  : keypoint(keypoint), descriptor(descriptor), landmark_id(landmark_id)
+  {
+  }
+  cv::KeyPoint keypoint;
+  cv::Mat descriptor;
+  long landmark_id;
+};
 // Temporary frame to store data before it is added to the map
 class Frame
 {
@@ -15,52 +27,60 @@ public:
 
   void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id)
   {
-    keypoints.push_back(keypoint);
-    descriptors.push_back(descriptor);
-    landmark_ids.push_back(landmark_id);
+    observations.emplace_back(keypoint, descriptor, landmark_id);
   }
 
   std::vector<cv::Point2f> get_points_2d() const
   {
     std::vector<cv::Point2f> points_2d;
-    points_2d.reserve(keypoints.size());
-    for (const auto & keypoint : keypoints) {
-      points_2d.push_back(keypoint.pt);
+    points_2d.reserve(observations.size());
+    for (const auto & obs : observations) {
+      points_2d.push_back(obs.keypoint.pt);
     }
     return points_2d;
   }
 
+  std::vector<cv::KeyPoint> get_keypoints() const
+  {
+    std::vector<cv::KeyPoint> keypoints;
+    keypoints.reserve(observations.size());
+    for (const auto & obs : observations) {
+      keypoints.push_back(obs.keypoint);
+    }
+    return keypoints;
+  }
+
+  cv::Mat get_descriptors() const
+  {
+    std::vector<cv::Mat> descriptor_rows;
+    for (const auto & obs : observations) {
+      descriptor_rows.push_back(obs.descriptor);
+    }
+    cv::Mat descriptors;
+    if (!descriptor_rows.empty()) {
+      cv::vconcat(descriptor_rows, descriptors);
+    }
+    return descriptors;
+  }
+
   void filter_observations_by_mask(const std::vector<uchar> & inlier_mask)
   {
-    if (
-      keypoints.size() != inlier_mask.size() ||
-      static_cast<size_t>(descriptors.rows) != inlier_mask.size()) {
-      std::cout << "keypoints: " << keypoints.size() << ", inlier mask: " << inlier_mask.size()
-                << ", descriptors: " << descriptors.rows << std::endl;
-      throw std::runtime_error("Inlier mask, keypoints and descriptors must have the same size");
-    }
-    std::vector<cv::KeyPoint> in_kps;
-    std::vector<cv::Mat> in_desc_rows;
-    in_kps.reserve(inlier_mask.size());
-    in_desc_rows.reserve(inlier_mask.size());
+    std::vector<Observation> in_obs;
+    in_obs.reserve(inlier_mask.size());
     for (size_t i = 0; i < inlier_mask.size(); ++i) {
       if (inlier_mask[i]) {
-        in_kps.push_back(keypoints[i]);
-        in_desc_rows.push_back(descriptors.row(i));
+        in_obs.push_back(observations[i]);
       }
     }
-    keypoints = in_kps;
-    cv::Mat in_descs;
-    cv::vconcat(in_desc_rows, in_descs);
-    descriptors = in_descs;
   }
 
   long id;
   cv::Mat image;
   cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
-  std::vector<cv::KeyPoint> keypoints;
-  cv::Mat descriptors;
-  std::vector<long> landmark_ids;
+  // std::vector<cv::KeyPoint> keypoints;
+  // cv::Mat descriptors;
+  // std::vector<long> landmark_ids;
+  std::vector<Observation> observations;
 
 private:
   static long next_id_;

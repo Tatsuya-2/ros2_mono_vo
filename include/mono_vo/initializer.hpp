@@ -39,13 +39,13 @@ public:
 
   bool good_keypoint_distribution(const Frame & frame)
   {
-    RCLCPP_INFO(logger_, "totals kps: %ld", frame.keypoints.size());
+    RCLCPP_INFO(logger_, "totals kps: %ld", frame.observations.size());
 
     // check distribution in a grid across the image
     cv::Mat grid = cv::Mat::zeros(frame.image.rows / 50, frame.image.cols / 50, CV_8U);
     int occupied_cells = 0;
-    for (auto & kp : frame.keypoints) {
-      int r = kp.pt.y / 50, c = kp.pt.x / 50;
+    for (auto & obs : frame.observations) {
+      int r = obs.keypoint.pt.y / 50, c = obs.keypoint.pt.x / 50;
       if (!grid.at<uchar>(r, c)) {
         grid.at<uchar>(r, c) = 1;
         occupied_cells++;
@@ -82,6 +82,9 @@ public:
     auto model_score = static_cast<double>(score_h) / static_cast<double>(score_f);
     RCLCPP_INFO(logger_, "score_h/score_f = %lf", model_score);
 
+    current_min_model_score_ = std::min(current_min_model_score_, model_score);
+    RCLCPP_INFO(logger_, "current_min_model_score = %lf", current_min_model_score_);
+
     // check 2: Is the Fundamental Matrix a significantly better model?
     // The ratio score_H / score_F should be low.
     // A high ratio means Homography explains the data almost as well as Fundamental Matrix.
@@ -95,7 +98,13 @@ public:
   {
     Frame frame(grey_img);
     frame.image = grey_img;
-    orb_det_->detectAndCompute(frame.image, cv::noArray(), frame.keypoints, frame.descriptors);
+    std::vector<cv::KeyPoint> keypoints;
+    cv::Mat descriptors;
+    orb_det_->detectAndCompute(frame.image, cv::noArray(), keypoints, descriptors);
+    frame.observations.reserve(keypoints.size());
+    for (size_t i = 0; i < keypoints.size(); i++) {
+      frame.add_observation(keypoints[i], descriptors.row(i), -1);
+    }
     return frame;
   }
 
@@ -184,7 +193,9 @@ public:
 
     if (state_ == State::INITIALIZING) {
       std::vector<std::vector<cv::DMatch>> knn_matches;
-      matcher_.knnMatch(ref_frame_.descriptors, cur_frame.descriptors, knn_matches, 2);
+      auto ref_descriptors = ref_frame_.get_descriptors();
+      auto cur_descriptors = cur_frame.get_descriptors();
+      matcher_.knnMatch(ref_descriptors, cur_descriptors, knn_matches, 2);
       RCLCPP_INFO(logger_, "total matches: %ld", knn_matches.size());
 
       std::vector<cv::DMatch> good_matches;
@@ -211,25 +222,16 @@ public:
 
       cv::Mat img_matches;
       cv::drawMatches(
-        ref_frame_.image, ref_frame_.keypoints, cur_frame.image, cur_frame.keypoints, good_matches,
-        img_matches);
+        ref_frame_.image, ref_frame_.get_keypoints(), cur_frame.image, cur_frame.get_keypoints(),
+        good_matches, img_matches);
 
-      std::vector<cv::KeyPoint> matched_kpts_ref, matched_kpts_cur;
-      std::vector<cv::Mat> matched_descriptors;
-      matched_kpts_ref.reserve(good_matches.size());
-      matched_kpts_cur.reserve(good_matches.size());
-      matched_descriptors.reserve(good_matches.size());
+      std::vector<Observation> new_ref_observations, new_cur_observations;
       for (const auto & match : good_matches) {
-        matched_kpts_ref.push_back(ref_frame_.keypoints[match.queryIdx]);
-        matched_kpts_cur.push_back(cur_frame.keypoints[match.trainIdx]);
-        matched_descriptors.push_back(ref_frame_.descriptors.row(match.queryIdx));
+        new_ref_observations.push_back(ref_frame_.observations[match.queryIdx]);
+        new_cur_observations.push_back(cur_frame.observations[match.trainIdx]);
       }
-      cv::Mat matched_descriptors_mat;
-      cv::vconcat(matched_descriptors, matched_descriptors_mat);
-      ref_frame_.keypoints = std::move(matched_kpts_ref);
-      cur_frame.keypoints = std::move(matched_kpts_cur);
-      ref_frame_.descriptors = matched_descriptors_mat;
-      cur_frame.descriptors = matched_descriptors_mat;
+      ref_frame_.observations = std::move(new_ref_observations);
+      cur_frame.observations = std::move(new_cur_observations);
 
       std::vector<cv::Point2f> pts_ref = ref_frame_.get_points_2d();
       std::vector<cv::Point2f> pts_cur = cur_frame.get_points_2d();
@@ -276,11 +278,8 @@ public:
       ref_frame_.filter_observations_by_mask(inliers);
       cur_frame.filter_observations_by_mask(inliers);
 
-      // check if 3d points size matches to keypoints size on chirality filtering
-      assert(pts3d.size() == cur_frame.keypoints.size());
-
       // check min 4 points are valid for PnP later
-      if (cur_frame.keypoints.size() < 4) {
+      if (cur_frame.observations.size() < 4) {
         RCLCPP_WARN(logger_, "Less than 4 points triangulated: resetting initializer");
         reset();
         return false;
@@ -295,13 +294,10 @@ public:
       cur_frame.pose_wc = cv::Affine3d(R, t);
 
       // filter based on new 3D landmarks
-      size_t observation_index = 0;
-      cur_frame.landmark_ids.resize(pts3d.size());
-      for (const auto & pt3d : pts3d) {
-        Landmark lm = Landmark{pt3d, cur_frame.descriptors.row(observation_index)};
+      for (size_t i = 0; i < pts3d.size(); ++i) {
+        Landmark lm = Landmark{pts3d[i], cur_frame.observations[i].descriptor};
         map_->add_landmark(lm);
-        cur_frame.landmark_ids[observation_index] = lm.id;
-        observation_index++;
+        cur_frame.observations[i].landmark_id = lm.id;
       }
 
       map_->add_keyframe(std::make_shared<KeyFrame>(cur_frame));
@@ -327,6 +323,8 @@ private:
   double ransac_thresh_f_ = 1.0;      // px fundamental RANSAC threshold
   double f_inlier_thresh_ = 0.5;      // fundamental inlier threshold ratio
   double model_score_thresh_ = 0.56;  // max H/F ratio
+
+  double current_min_model_score_ = 100.0;  // min H/F ratio
 
   cv::Ptr<cv::ORB> orb_det_;
   cv::BFMatcher matcher_;

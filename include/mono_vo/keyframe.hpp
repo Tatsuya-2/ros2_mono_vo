@@ -24,39 +24,55 @@ public:
   KeyFrame(const Frame & frame)
   {
     // assert that the frame is not empty
-    assert(!frame.keypoints.empty());
-    assert(!frame.descriptors.empty());
-    assert(!frame.landmark_ids.empty());
+    assert(!frame.observations.empty());
     assert(!isAffine3dDefault(frame.pose_wc, 1e-9));
     id = next_id_++;
     pose_wc = frame.pose_wc;
-    keypoints = frame.keypoints;
-    descriptors = frame.descriptors;
-    landmark_ids = frame.landmark_ids;
+    observations = frame.observations;
   }
 
-  void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id)
+  void add_observation(
+    const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id = -1)
   {
-    keypoints.push_back(keypoint);
-    descriptors.push_back(descriptor);
-    landmark_ids.push_back(landmark_id);
+    observations.emplace_back(keypoint, descriptor, landmark_id);
   }
 
   std::vector<cv::Point2f> get_points_2d() const
   {
     std::vector<cv::Point2f> points_2d;
-    points_2d.resize(keypoints.size());
-    for (size_t i = 0; i < keypoints.size(); i++) {
-      points_2d[i] = keypoints[i].pt;
+    points_2d.reserve(observations.size());
+    for (const auto & obs : observations) {
+      points_2d.push_back(obs.keypoint.pt);
     }
     return points_2d;
   }
 
+  std::vector<cv::KeyPoint> get_keypoints() const
+  {
+    std::vector<cv::KeyPoint> keypoints;
+    keypoints.reserve(observations.size());
+    for (const auto & obs : observations) {
+      keypoints.push_back(obs.keypoint);
+    }
+    return keypoints;
+  }
+
+  cv::Mat get_descriptors() const
+  {
+    std::vector<cv::Mat> descriptor_rows;
+    for (const auto & obs : observations) {
+      descriptor_rows.push_back(obs.descriptor);
+    }
+    cv::Mat descriptors;
+    if (!descriptor_rows.empty()) {
+      cv::vconcat(descriptor_rows, descriptors);
+    }
+    return descriptors;
+  }
+
   long id;
   cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
-  std::vector<cv::KeyPoint> keypoints;
-  cv::Mat descriptors;
-  std::vector<long> landmark_ids;
+  std::vector<Observation> observations;
 
 private:
   static long next_id_;
