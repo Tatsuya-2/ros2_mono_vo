@@ -8,7 +8,6 @@
 
 #include "mono_vo/frame.hpp"
 #include "mono_vo/map.hpp"
-#include "mono_vo/utils.hpp"
 
 namespace mono_vo
 {
@@ -27,9 +26,9 @@ public:
   : map_(map),
     logger_(logger),
     state_(State::OBTAINING_REF),
+    ref_frame_(cv::Mat()),
     distribution_thresh_(0.5f),
-    matcher_(cv::BFMatcher(cv::NORM_HAMMING)),
-    ref_frame_(cv::Mat())
+    matcher_(cv::BFMatcher(cv::NORM_HAMMING))
   {
     orb_det_ = cv::ORB::create(1000);
   }
@@ -121,7 +120,7 @@ public:
   std::vector<cv::Point3f> traingulate_points(
     const cv::Mat & K, const cv::Mat & R, const cv::Mat & t,
     const std::vector<cv::Point2f> & ref_points, const std::vector<cv::Point2f> & cur_points,
-    std::vector<uchar> inliers)
+    std::vector<uchar> & inliers)
   {
     // get projection matrices
     cv::Mat P_ref = K * cv::Mat::eye(3, 4, CV_64F);  // P_ref = K * [I | 0]
@@ -229,14 +228,13 @@ public:
       cv::vconcat(matched_descriptors, matched_descriptors_mat);
       ref_frame_.keypoints = std::move(matched_kpts_ref);
       cur_frame.keypoints = std::move(matched_kpts_cur);
-      ref_frame_.descriptors = std::move(matched_descriptors_mat);
+      ref_frame_.descriptors = matched_descriptors_mat;
+      cur_frame.descriptors = matched_descriptors_mat;
 
       std::vector<cv::Point2f> pts_ref = ref_frame_.get_points_2d();
       std::vector<cv::Point2f> pts_cur = cur_frame.get_points_2d();
       if (!check_parallax(pts_ref, pts_cur)) {
         RCLCPP_WARN(logger_, "Parallax check failed");
-        cv::imshow("Matches", img_matches);
-        cv::waitKey(1);
         return false;
       }
 
@@ -325,10 +323,10 @@ private:
   float distribution_thresh_;
   double match_distance_thresh_ = 0.7;
   double min_matches_for_parallax_ = 100;
-  double ransac_thresh_h_ = 2.0;     // px homography RANSAC threshold
-  double ransac_thresh_f_ = 1.0;     // px fundamental RANSAC threshold
-  double f_inlier_thresh_ = 0.5;     // fundamental inlier threshold ratio
-  double model_score_thresh_ = 0.5;  // max H/F ratio
+  double ransac_thresh_h_ = 2.0;      // px homography RANSAC threshold
+  double ransac_thresh_f_ = 1.0;      // px fundamental RANSAC threshold
+  double f_inlier_thresh_ = 0.5;      // fundamental inlier threshold ratio
+  double model_score_thresh_ = 0.56;  // max H/F ratio
 
   cv::Ptr<cv::ORB> orb_det_;
   cv::BFMatcher matcher_;
