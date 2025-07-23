@@ -6,16 +6,11 @@
 #include <rclcpp/logging.hpp>
 #include <vector>
 
+#include "mono_vo/frame.hpp"
 #include "mono_vo/map.hpp"
 
 namespace mono_vo
 {
-struct FrameData
-{
-  cv::Mat image;
-  std::vector<cv::KeyPoint> keypoints;
-  cv::Mat descriptors;
-};
 
 class Initializer
 {
@@ -32,7 +27,8 @@ public:
     logger_(logger),
     state_(State::OBTAINING_REF),
     distribution_thresh_(0.5f),
-    matcher_(cv::BFMatcher(cv::NORM_HAMMING))
+    matcher_(cv::BFMatcher(cv::NORM_HAMMING)),
+    ref_frame_(cv::Mat())
   {
     orb_det_ = cv::ORB::create(1000);
   }
@@ -41,7 +37,7 @@ public:
 
   void reset() { state_ = State::OBTAINING_REF; }
 
-  bool good_ref_frame(const FrameData & frame)
+  bool good_keypoint_distribution(const Frame & frame)
   {
     RCLCPP_INFO(logger_, "totals kps: %ld", frame.keypoints.size());
 
@@ -95,16 +91,20 @@ public:
 
     return true;
   }
+  Frame create_frame(const cv::Mat & grey_img)
+  {
+    Frame frame(grey_img);
+    frame.image = grey_img;
+    orb_det_->detectAndCompute(frame.image, cv::noArray(), frame.keypoints, frame.descriptors);
+    return frame;
+  }
 
   bool try_initializing(const cv::Mat & grey_img, const cv::Mat & K)
   {
-    FrameData cur_frame;
-    cur_frame.image = grey_img;
-    orb_det_->detectAndCompute(
-      cur_frame.image, cv::Mat(), cur_frame.keypoints, cur_frame.descriptors);
+    Frame cur_frame = create_frame(grey_img);
 
     if (state_ == State::OBTAINING_REF) {
-      if (!good_ref_frame(cur_frame)) return false;
+      if (!good_keypoint_distribution(cur_frame)) return false;
       RCLCPP_INFO(logger_, "found good reference frame");
       ref_frame_ = std::move(cur_frame);
       state_ = State::INITIALIZING;
@@ -118,7 +118,7 @@ public:
 
       std::vector<cv::DMatch> good_matches;
       for (auto & match : knn_matches) {
-        if (match.size() == 2 && match[0].distance < 0.7 * match[1].distance) {
+        if (match.size() == 2 && match[0].distance < match_distance_thresh_ * match[1].distance) {
           good_matches.push_back(match[0]);
         }
       }
@@ -128,7 +128,7 @@ public:
       if (good_matches.size() < min_matches_for_parallax_) {
         RCLCPP_WARN(logger_, "Initializer: Not enough matches");
         // check if new frame is good ref, if yes set it else continue initializing step
-        if (good_ref_frame(cur_frame)) {
+        if (good_keypoint_distribution(cur_frame)) {
           RCLCPP_WARN(logger_, "found new good reference frame");
           ref_frame_ = std::move(cur_frame);
         } else {
@@ -143,18 +143,18 @@ public:
         ref_frame_.image, ref_frame_.keypoints, cur_frame.image, cur_frame.keypoints, good_matches,
         img_matches);
 
-      std::vector<cv::Point2f> pts1, pts2;
+      std::vector<cv::Point2f> pts_ref, pts_cur;
       std::vector<cv::Mat> descriptors;
-      pts1.reserve(good_matches.size());
-      pts2.reserve(good_matches.size());
+      pts_ref.reserve(good_matches.size());
+      pts_cur.reserve(good_matches.size());
       descriptors.reserve(good_matches.size());
       for (const auto & match : good_matches) {
-        pts1.push_back(ref_frame_.keypoints[match.queryIdx].pt);
-        pts2.push_back(cur_frame.keypoints[match.trainIdx].pt);
+        pts_ref.push_back(ref_frame_.keypoints[match.queryIdx].pt);
+        pts_cur.push_back(cur_frame.keypoints[match.trainIdx].pt);
         descriptors.push_back(ref_frame_.descriptors.row(match.queryIdx));
       }
 
-      if (!check_parallax(pts1, pts2)) {
+      if (!check_parallax(pts_ref, pts_cur)) {
         RCLCPP_WARN(logger_, "Parallax check failed");
         cv::imshow("Matches", img_matches);
         cv::waitKey(1);
@@ -165,14 +165,14 @@ public:
 
       // find essential matrix
       std::vector<uchar> inlier_mask;
-      cv::Mat E = cv::findEssentialMat(pts1, pts2, K, cv::RANSAC, 0.99, 1.0, inlier_mask);
+      cv::Mat E = cv::findEssentialMat(pts_ref, pts_cur, K, cv::RANSAC, 0.99, 1.0, inlier_mask);
       RCLCPP_INFO(
         logger_, "Found Essential Matrix with inlier ratio %lf",
-        static_cast<double>(cv::countNonZero(inlier_mask)) / pts1.size());
+        static_cast<double>(cv::countNonZero(inlier_mask)) / pts_ref.size());
 
       // decompose to get rotation and translation
       cv::Mat R, t;
-      cv::recoverPose(E, pts1, pts2, K, R, t, inlier_mask);
+      cv::recoverPose(E, pts_ref, pts_cur, K, R, t, inlier_mask);
 
       uint32_t num_inliers = cv::countNonZero(inlier_mask);
 
@@ -180,7 +180,7 @@ public:
       std::cout << "R:\n" << R << std::endl;
       std::cout << "t:\n" << t << std::endl;
       std::cout << "Inlier  ratio:\n"
-                << static_cast<double>(num_inliers) / pts1.size() << std::endl;
+                << static_cast<double>(num_inliers) / pts_ref.size() << std::endl;
 
       // get projection matrices
       cv::Mat P_ref = cv::Mat::zeros(3, 4, CV_64F);
@@ -200,8 +200,8 @@ public:
       inlier_descriptors.reserve(num_inliers);
       for (size_t i = 0; i < inlier_mask.size(); ++i) {
         if (inlier_mask[i]) {
-          inlier_pts_ref.push_back(pts1[i]);
-          inlier_pts_cur.push_back(pts2[i]);
+          inlier_pts_ref.push_back(pts_ref[i]);
+          inlier_pts_cur.push_back(pts_cur[i]);
           inlier_descriptors.push_back(descriptors[i]);
         }
       }
@@ -216,43 +216,51 @@ public:
       cv::Mat pts3d;
       cv::convertPointsFromHomogeneous(pts4d_h.t(), pts3d);
 
-      // chirality check
-      // The 3D points are in the reference camera's coordinate system.
-      // We need to keep only the points that are:
-      // 1. In front of the reference camera (z > 0).
-      // 2. In front of the current camera (z > 0 after transformation).
-
-      size_t num_valid_points = 0;
-
-      for (int i = 0; i < pts3d.rows; ++i) {
-        const cv::Point3f & p3d_ref = pts3d.at<cv::Point3f>(i);
-
-        // --- Check 1: Point is in front of the reference camera ---
-        if (p3d_ref.z <= 0) {
-          continue;
+      // chirality check:check if point is in front of both reference and current camera frame
+      auto is_infront = [&R, &t](const cv::Point3f & p3d) {
+        // check if point is in front of the current camera
+        if (p3d.z <= 0) {
+          return false;
         }
 
-        // --- Check 2: Point is in front of the current camera ---
         // Transform the 3D point into the current camera's coordinate system.
-        cv::Mat p3d_ref_mat = (cv::Mat_<double>(3, 1) << p3d_ref.x, p3d_ref.y, p3d_ref.z);
-        cv::Mat p3d_cur_mat = R * p3d_ref_mat + t;
+        cv::Mat p3d_mat = (cv::Mat_<double>(3, 1) << p3d.x, p3d.y, p3d.z);
+        cv::Mat p3d_cur_mat = R * p3d_mat + t;
+        return p3d_cur_mat.at<double>(2, 0) > 0;
+      };
 
-        if (p3d_cur_mat.at<double>(2, 0) <= 0) {
+      std::vector<size_t> valid_ids;
+      for (int i = 0; i < pts3d.rows; ++i) {
+        cv::Point3f p3d_ref = pts3d.at<cv::Point3f>(i);
+        if (!is_infront(p3d_ref)) {
           continue;
         }
 
-        map_->add_landmark(p3d_ref, descriptors[i], inlier_pts_cur[i]);
-        num_valid_points++;
+        valid_ids.push_back(i);
       }
 
       // valid points should be enough for pnp otherwise reset
-      if (num_valid_points < 4) {
+      if (valid_ids.size() < 4) {
         reset();
         return false;
       }
 
+      // add origin keyframe
+      KeyFrame::Ptr origin_keyframe =
+        std::make_shared<KeyFrame>(cv::Affine3d(cv::Matx33d::eye(), cv::Vec3d::zeros()));
+      map_->add_keyframe(origin_keyframe);
+
+      KeyFrame::Ptr keyframe = std::make_shared<KeyFrame>(cv::Affine3d(R, t));
+
+      // filter based on new 3D landmarks
+      for (const auto & i : valid_ids) {
+        Landmark lm = Landmark{pts3d.at<cv::Point3f>(i), descriptors[i]};
+        map_->add_landmark(lm);
+        keyframe->add_observation(keypoints[i], descriptors[i], lm.id);
+      }
+
       RCLCPP_INFO(
-        logger_, "Chirality check complete. Kept %zu / %d valid points.", num_valid_points,
+        logger_, "Chirality check complete. Kept %zu / %d valid points.", valid_ids.size(),
         pts3d.rows);
 
       cv::imshow("Matches", img_matches);
@@ -268,8 +276,9 @@ private:
   std::shared_ptr<Map> map_;
   rclcpp::Logger logger_;
   State state_;
-  FrameData ref_frame_;
+  Frame ref_frame_;
   float distribution_thresh_;
+  double match_distance_thresh_ = 0.7;
   double min_matches_for_parallax_ = 100;
   double ransac_thresh_h_ = 2.0;     // px homography RANSAC threshold
   double ransac_thresh_f_ = 1.0;     // px fundamental RANSAC threshold
