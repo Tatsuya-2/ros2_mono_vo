@@ -51,6 +51,7 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
   if (!initializer_.is_initalized()) {
     initializer_.try_initializing(image, K_.value());
+    return;
   }
 
   RCLCPP_INFO(this->get_logger(), "Initialized");
