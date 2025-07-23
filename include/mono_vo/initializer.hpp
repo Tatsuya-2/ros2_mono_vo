@@ -8,6 +8,7 @@
 
 #include "mono_vo/frame.hpp"
 #include "mono_vo/map.hpp"
+#include "mono_vo/utils.hpp"
 
 namespace mono_vo
 {
@@ -99,6 +100,77 @@ public:
     return frame;
   }
 
+  /**
+   * Triangulate points given reference and current frames.
+   *
+   * The function takes two sets of 2D points, ref_points and cur_points, and computes the corresponding 3D points.
+   * The points are triangulated using the projection matrices P_ref and P_cur, and the inliers are
+   * checked using a chirality check.
+   *
+   * The output is a 3d point vector, whose size() is the number of valid 3D points.
+   *
+   * @param K The camera intrinsic matrix.
+   * @param R The rotation matrix from the reference frame to the current frame.
+   * @param t The translation vector from the reference frame to the current frame.
+   * @param ref_points The 2D points in the reference frame.
+   * @param cur_points The 2D points in the current frame.
+   * @param inliers The inliers of the triangulation.
+   *
+   * @return A 3d point vector.
+   */
+  std::vector<cv::Point3f> traingulate_points(
+    const cv::Mat & K, const cv::Mat & R, const cv::Mat & t,
+    const std::vector<cv::Point2f> & ref_points, const std::vector<cv::Point2f> & cur_points,
+    std::vector<uchar> inliers)
+  {
+    // get projection matrices
+    cv::Mat P_ref = K * cv::Mat::eye(3, 4, CV_64F);  // P_ref = K * [I | 0]
+
+    cv::Mat Rt;
+    cv::hconcat(R, t, Rt);
+    cv::Mat P_cur = K * Rt;  // P_cur = K * [R | t]
+
+    cv::Mat pts4d_h;  // Output is 4xN matrix of homogeneous 3D points
+    cv::triangulatePoints(P_ref, P_cur, ref_points, cur_points, pts4d_h);
+
+    RCLCPP_INFO(logger_, "Triangulated %d 3D points", pts4d_h.cols);
+
+    // convert to cartesian
+    cv::Mat pts3d;
+    cv::convertPointsFromHomogeneous(pts4d_h.t(), pts3d);
+
+    // chirality check:check if point is in front of both reference and current camera frame
+    auto is_infront = [&R, &t](const cv::Point3f & p3d) {
+      // check if point is in front of the reference camera
+      if (p3d.z <= 0) {
+        return false;
+      }
+
+      // Transform the 3D point into the current camera's coordinate system.
+      cv::Mat p3d_mat = (cv::Mat_<double>(3, 1) << p3d.x, p3d.y, p3d.z);
+      cv::Mat p3d_cur_mat = R * p3d_mat + t;
+      return p3d_cur_mat.at<double>(2, 0) > 0;
+    };
+
+    inliers.clear();
+    inliers.reserve(pts3d.rows);
+    std::vector<cv::Point3f> points_3d;
+    for (int i = 0; i < pts3d.rows; ++i) {
+      const cv::Point3f & p3d_ref = pts3d.at<cv::Point3f>(i);
+      if (is_infront(p3d_ref)) {
+        inliers.push_back(1);
+        points_3d.push_back(p3d_ref);
+      } else {
+        inliers.push_back(0);
+      }
+    }
+
+    RCLCPP_INFO(
+      logger_, "Triangulation complete. Kept %zu / %d valid points.", points_3d.size(), pts3d.rows);
+
+    return points_3d;
+  }
+
   bool try_initializing(const cv::Mat & grey_img, const cv::Mat & K)
   {
     Frame cur_frame = create_frame(grey_img);
@@ -143,17 +215,24 @@ public:
         ref_frame_.image, ref_frame_.keypoints, cur_frame.image, cur_frame.keypoints, good_matches,
         img_matches);
 
-      std::vector<cv::Point2f> pts_ref, pts_cur;
-      std::vector<cv::Mat> descriptors;
-      pts_ref.reserve(good_matches.size());
-      pts_cur.reserve(good_matches.size());
-      descriptors.reserve(good_matches.size());
+      std::vector<cv::KeyPoint> matched_kpts_ref, matched_kpts_cur;
+      std::vector<cv::Mat> matched_descriptors;
+      matched_kpts_ref.reserve(good_matches.size());
+      matched_kpts_cur.reserve(good_matches.size());
+      matched_descriptors.reserve(good_matches.size());
       for (const auto & match : good_matches) {
-        pts_ref.push_back(ref_frame_.keypoints[match.queryIdx].pt);
-        pts_cur.push_back(cur_frame.keypoints[match.trainIdx].pt);
-        descriptors.push_back(ref_frame_.descriptors.row(match.queryIdx));
+        matched_kpts_ref.push_back(ref_frame_.keypoints[match.queryIdx]);
+        matched_kpts_cur.push_back(cur_frame.keypoints[match.trainIdx]);
+        matched_descriptors.push_back(ref_frame_.descriptors.row(match.queryIdx));
       }
+      cv::Mat matched_descriptors_mat;
+      cv::vconcat(matched_descriptors, matched_descriptors_mat);
+      ref_frame_.keypoints = std::move(matched_kpts_ref);
+      cur_frame.keypoints = std::move(matched_kpts_cur);
+      ref_frame_.descriptors = std::move(matched_descriptors_mat);
 
+      std::vector<cv::Point2f> pts_ref = ref_frame_.get_points_2d();
+      std::vector<cv::Point2f> pts_cur = cur_frame.get_points_2d();
       if (!check_parallax(pts_ref, pts_cur)) {
         RCLCPP_WARN(logger_, "Parallax check failed");
         cv::imshow("Matches", img_matches);
@@ -182,65 +261,29 @@ public:
       std::cout << "Inlier  ratio:\n"
                 << static_cast<double>(num_inliers) / pts_ref.size() << std::endl;
 
-      // get projection matrices
-      cv::Mat P_ref = cv::Mat::zeros(3, 4, CV_64F);
-      K.copyTo(P_ref(cv::Rect(0, 0, 3, 3)));  // P_ref = K * [I | 0]
-
-      cv::Mat P_cur = cv::Mat::zeros(3, 4, CV_64F);
-      R.copyTo(P_cur(cv::Rect(0, 0, 3, 3)));
-      t.copyTo(P_cur(cv::Rect(3, 0, 1, 3)));
-      P_cur = K * P_cur;  // P_cur = K * [R | t]
-
       // filter points
-      std::vector<cv::Point2f> inlier_pts_ref;
-      std::vector<cv::Point2f> inlier_pts_cur;
-      std::vector<cv::Mat> inlier_descriptors;
-      inlier_pts_ref.reserve(num_inliers);
-      inlier_pts_cur.reserve(num_inliers);
-      inlier_descriptors.reserve(num_inliers);
-      for (size_t i = 0; i < inlier_mask.size(); ++i) {
-        if (inlier_mask[i]) {
-          inlier_pts_ref.push_back(pts_ref[i]);
-          inlier_pts_cur.push_back(pts_cur[i]);
-          inlier_descriptors.push_back(descriptors[i]);
-        }
-      }
+      ref_frame_.filter_observations_by_mask(inlier_mask);
+      cur_frame.filter_observations_by_mask(inlier_mask);
+
+      std::vector<cv::Point2f> inlier_pts_ref = ref_frame_.get_points_2d();
+      std::vector<cv::Point2f> inlier_pts_cur = cur_frame.get_points_2d();
 
       // triangulate points
-      cv::Mat pts4d_h;  // Output is 4xN matrix of homogeneous 3D points
-      cv::triangulatePoints(P_ref, P_cur, inlier_pts_ref, inlier_pts_cur, pts4d_h);
 
-      RCLCPP_INFO(logger_, "Triangulated %d 3D points", pts4d_h.cols);
+      std::vector<uchar> inliers;
+      std::vector<cv::Point3f> pts3d =
+        traingulate_points(K, R, t, ref_frame_.get_points_2d(), cur_frame.get_points_2d(), inliers);
 
-      // convert to cartesian
-      cv::Mat pts3d;
-      cv::convertPointsFromHomogeneous(pts4d_h.t(), pts3d);
+      // filter chirality check passed points
+      ref_frame_.filter_observations_by_mask(inliers);
+      cur_frame.filter_observations_by_mask(inliers);
 
-      // chirality check:check if point is in front of both reference and current camera frame
-      auto is_infront = [&R, &t](const cv::Point3f & p3d) {
-        // check if point is in front of the current camera
-        if (p3d.z <= 0) {
-          return false;
-        }
+      // check if 3d points size matches to keypoints size on chirality filtering
+      assert(pts3d.size() == cur_frame.keypoints.size());
 
-        // Transform the 3D point into the current camera's coordinate system.
-        cv::Mat p3d_mat = (cv::Mat_<double>(3, 1) << p3d.x, p3d.y, p3d.z);
-        cv::Mat p3d_cur_mat = R * p3d_mat + t;
-        return p3d_cur_mat.at<double>(2, 0) > 0;
-      };
-
-      std::vector<size_t> valid_ids;
-      for (int i = 0; i < pts3d.rows; ++i) {
-        cv::Point3f p3d_ref = pts3d.at<cv::Point3f>(i);
-        if (!is_infront(p3d_ref)) {
-          continue;
-        }
-
-        valid_ids.push_back(i);
-      }
-
-      // valid points should be enough for pnp otherwise reset
-      if (valid_ids.size() < 4) {
+      // check min 4 points are valid for PnP later
+      if (cur_frame.keypoints.size() < 4) {
+        RCLCPP_WARN(logger_, "Less than 4 points triangulated: resetting initializer");
         reset();
         return false;
       }
@@ -250,18 +293,20 @@ public:
         std::make_shared<KeyFrame>(cv::Affine3d(cv::Matx33d::eye(), cv::Vec3d::zeros()));
       map_->add_keyframe(origin_keyframe);
 
-      KeyFrame::Ptr keyframe = std::make_shared<KeyFrame>(cv::Affine3d(R, t));
+      // KeyFrame::Ptr keyframe = std::make_shared<KeyFrame>(cv::Affine3d(R, t));
+      cur_frame.pose_wc = cv::Affine3d(R, t);
 
       // filter based on new 3D landmarks
-      for (const auto & i : valid_ids) {
-        Landmark lm = Landmark{pts3d.at<cv::Point3f>(i), descriptors[i]};
+      size_t observation_index = 0;
+      cur_frame.landmark_ids.resize(pts3d.size());
+      for (const auto & pt3d : pts3d) {
+        Landmark lm = Landmark{pt3d, cur_frame.descriptors.row(observation_index)};
         map_->add_landmark(lm);
-        keyframe->add_observation(keypoints[i], descriptors[i], lm.id);
+        cur_frame.landmark_ids[observation_index] = lm.id;
+        observation_index++;
       }
 
-      RCLCPP_INFO(
-        logger_, "Chirality check complete. Kept %zu / %d valid points.", valid_ids.size(),
-        pts3d.rows);
+      map_->add_keyframe(std::make_shared<KeyFrame>(cur_frame));
 
       cv::imshow("Matches", img_matches);
       cv::waitKey(0);
