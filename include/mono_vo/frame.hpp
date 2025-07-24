@@ -23,7 +23,7 @@ public:
 class Frame
 {
 public:
-  Frame(const cv::Mat & image) : id(next_id_++), image(image.clone()) {}
+  explicit Frame(const cv::Mat & image) : id(next_id_++), image(image.clone()) {}
 
   void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id)
   {

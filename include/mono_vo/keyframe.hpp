@@ -14,14 +14,14 @@ class KeyFrame
 {
 public:
   using Ptr = std::shared_ptr<KeyFrame>;
-  KeyFrame(const cv::Affine3d & pose) : id(next_id_++), pose_wc(pose) {}
+  explicit KeyFrame(const cv::Affine3d & pose) : id(next_id_++), pose_wc(pose) {}
 
   bool isAffine3dDefault(const cv::Affine3d & pose, double eps = 1e-9)
   {
     return cv::norm(pose.matrix - cv::Affine3d().matrix) < eps;
   }
   // A constructor to create a KeyFrame from a temporary Frame object
-  KeyFrame(const Frame & frame)
+  explicit KeyFrame(const Frame & frame)
   {
     // assert that the frame is not empty
     assert(!frame.observations.empty());
