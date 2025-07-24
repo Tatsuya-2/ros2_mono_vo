@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <opencv2/opencv.hpp>
 #include <rclcpp/logging.hpp>
 
@@ -8,6 +9,8 @@ namespace mono_vo
 class FeatureExtractor
 {
 public:
+  using Ptr = std::shared_ptr<FeatureExtractor>;
+
   FeatureExtractor(
     int num_features = 1000, rclcpp::Logger logger = rclcpp::get_logger("FeatureExtractor"))
   : detector_(cv::ORB::create(num_features)),

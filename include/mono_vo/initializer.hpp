@@ -24,13 +24,16 @@ public:
     INITIALIZED
   };
 
-  Initializer(std::shared_ptr<Map> map, rclcpp::Logger logger = rclcpp::get_logger("Initializer"))
+  Initializer(
+    std::shared_ptr<Map> map,
+    FeatureExtractor::Ptr feature_extractor = std::make_shared<FeatureExtractor>(1000),
+    rclcpp::Logger logger = rclcpp::get_logger("Initializer"))
   : map_(map),
     logger_(logger),
     state_(State::OBTAINING_REF),
     ref_frame_(cv::Mat()),
     distribution_thresh_(0.5f),
-    feature_extractor_(1000)
+    feature_extractor_(feature_extractor)
   {
   }
 
@@ -184,7 +187,7 @@ public:
       auto ref_descriptors = ref_frame_.get_descriptors();
       auto cur_descriptors = cur_frame.get_descriptors();
 
-      std::vector<cv::DMatch> good_matches = feature_extractor_.find_matches(
+      std::vector<cv::DMatch> good_matches = feature_extractor_->find_matches(
         ref_descriptors, cur_descriptors, match_distance_thresh_ratio_);
 
       if (good_matches.size() < min_matches_for_parallax_) {
@@ -306,6 +309,6 @@ private:
 
   double current_min_model_score_ = 100.0;  // min H/F ratio
 
-  FeatureExtractor feature_extractor_;
+  FeatureExtractor::Ptr feature_extractor_;
 };
 }  // namespace mono_vo

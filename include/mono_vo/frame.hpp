@@ -26,12 +26,12 @@ class Frame
 public:
   explicit Frame(const cv::Mat & image) : id(next_id_++), image(image.clone()) {}
 
-  static Frame create_from_image(const cv::Mat & image, const FeatureExtractor & extractor)
+  static Frame create_from_image(const cv::Mat & image, const FeatureExtractor::Ptr extractor)
   {
     Frame frame(image);
     std::vector<cv::KeyPoint> keypoints;
     cv::Mat descriptors;
-    extractor.detect_and_compute(frame.image, keypoints, descriptors);
+    extractor->detect_and_compute(frame.image, keypoints, descriptors);
     frame.observations.reserve(keypoints.size());
     for (size_t i = 0; i < keypoints.size(); i++) {
       frame.add_observation(keypoints[i], descriptors.row(i), -1);
