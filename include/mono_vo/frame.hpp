@@ -21,10 +21,11 @@ public:
   long landmark_id;
 };
 // Temporary frame to store data before it is added to the map
-class Frame
+struct Frame
 {
 public:
-  explicit Frame(const cv::Mat & image) : id(next_id_++), image(image.clone()) {}
+  using Ptr = std::shared_ptr<Frame>;
+  explicit Frame(const cv::Mat & image) : image(image.clone()) {}
 
   static Frame create_from_image(const cv::Mat & image, const FeatureExtractor::Ptr extractor)
   {
@@ -92,10 +93,6 @@ public:
   cv::Mat image;
   cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
   std::vector<Observation> observations;
-
-private:
-  static long next_id_;
 };
 
-long Frame::next_id_ = 0;
 }  // namespace mono_vo
