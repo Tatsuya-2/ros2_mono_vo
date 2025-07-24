@@ -26,9 +26,12 @@ public:
   {
     RCLCPP_INFO(logger_, "Adding keyframe %ld", keyframe->id);
     keyframes_.emplace(keyframe->id, keyframe);
+    last_keyframe_id_ = keyframe->id;
   }
 
   const KeyFrame::Ptr & get_keyframe(long id) { return keyframes_.at(id); }
+
+  const KeyFrame::Ptr & get_last_keyframe() { return keyframes_.at(last_keyframe_id_); }
 
   const std::map<long, Landmark> & get_all_landmarks() const { return landmarks_; }
 
@@ -42,5 +45,6 @@ private:
   std::map<long, Landmark> landmarks_;
   std::map<long, KeyFrame::Ptr> keyframes_;
   rclcpp::Logger logger_;
+  long last_keyframe_id_ = 0;
 };
 }  // namespace mono_vo
