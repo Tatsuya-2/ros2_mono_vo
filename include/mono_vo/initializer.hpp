@@ -172,7 +172,8 @@ public:
 
   bool try_initializing(const cv::Mat & grey_img, const cv::Mat & K)
   {
-    Frame cur_frame = Frame::create_from_image(grey_img, feature_extractor_);
+    Frame cur_frame{grey_img};
+    cur_frame.extract_features(feature_extractor_);
 
     if (state_ == State::OBTAINING_REF) {
       if (!good_keypoint_distribution(cur_frame)) return false;
@@ -307,7 +308,7 @@ private:
   double f_inlier_thresh_ = 0.5;      // fundamental inlier threshold ratio
   double model_score_thresh_ = 0.56;  // max H/F ratio
 
-  double current_min_model_score_ = 100.0;  // min H/F ratio
+  double current_min_model_score_ = 100.0;  // min H/F ratio for debug
 
   FeatureExtractor::Ptr feature_extractor_;
 };
