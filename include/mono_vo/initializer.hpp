@@ -6,8 +6,10 @@
 #include <rclcpp/logging.hpp>
 #include <vector>
 
+#include "mono_vo/feature_extractor.hpp"
 #include "mono_vo/frame.hpp"
 #include "mono_vo/map.hpp"
+#include "mono_vo/utils.hpp"
 
 namespace mono_vo
 {
@@ -28,9 +30,8 @@ public:
     state_(State::OBTAINING_REF),
     ref_frame_(cv::Mat()),
     distribution_thresh_(0.5f),
-    matcher_(cv::BFMatcher(cv::NORM_HAMMING))
+    feature_extractor_(1000)
   {
-    orb_det_ = cv::ORB::create(1000);
   }
 
   bool is_initalized() { return state_ == State::INITIALIZED; }
@@ -93,19 +94,6 @@ public:
     }
 
     return true;
-  }
-  Frame create_frame(const cv::Mat & grey_img)
-  {
-    Frame frame(grey_img);
-    frame.image = grey_img;
-    std::vector<cv::KeyPoint> keypoints;
-    cv::Mat descriptors;
-    orb_det_->detectAndCompute(frame.image, cv::noArray(), keypoints, descriptors);
-    frame.observations.reserve(keypoints.size());
-    for (size_t i = 0; i < keypoints.size(); i++) {
-      frame.add_observation(keypoints[i], descriptors.row(i), -1);
-    }
-    return frame;
   }
 
   /**
@@ -181,7 +169,7 @@ public:
 
   bool try_initializing(const cv::Mat & grey_img, const cv::Mat & K)
   {
-    Frame cur_frame = create_frame(grey_img);
+    Frame cur_frame = Frame::create_from_image(grey_img, feature_extractor_);
 
     if (state_ == State::OBTAINING_REF) {
       if (!good_keypoint_distribution(cur_frame)) return false;
@@ -195,17 +183,9 @@ public:
       std::vector<std::vector<cv::DMatch>> knn_matches;
       auto ref_descriptors = ref_frame_.get_descriptors();
       auto cur_descriptors = cur_frame.get_descriptors();
-      matcher_.knnMatch(ref_descriptors, cur_descriptors, knn_matches, 2);
-      RCLCPP_INFO(logger_, "total matches: %ld", knn_matches.size());
 
-      std::vector<cv::DMatch> good_matches;
-      for (auto & match : knn_matches) {
-        if (match.size() == 2 && match[0].distance < match_distance_thresh_ * match[1].distance) {
-          good_matches.push_back(match[0]);
-        }
-      }
-
-      RCLCPP_INFO(logger_, "good matches: %ld", good_matches.size());
+      std::vector<cv::DMatch> good_matches = feature_extractor_.find_matches(
+        ref_descriptors, cur_descriptors, match_distance_thresh_ratio_);
 
       if (good_matches.size() < min_matches_for_parallax_) {
         RCLCPP_WARN(logger_, "Initializer: Not enough matches");
@@ -317,7 +297,7 @@ private:
   State state_;
   Frame ref_frame_;
   float distribution_thresh_;
-  double match_distance_thresh_ = 0.7;
+  double match_distance_thresh_ratio_ = 0.7;
   double min_matches_for_parallax_ = 100;
   double ransac_thresh_h_ = 2.0;      // px homography RANSAC threshold
   double ransac_thresh_f_ = 1.0;      // px fundamental RANSAC threshold
@@ -326,7 +306,6 @@ private:
 
   double current_min_model_score_ = 100.0;  // min H/F ratio
 
-  cv::Ptr<cv::ORB> orb_det_;
-  cv::BFMatcher matcher_;
+  FeatureExtractor feature_extractor_;
 };
 }  // namespace mono_vo
