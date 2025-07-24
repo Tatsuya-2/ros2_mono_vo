@@ -77,9 +77,6 @@ public:
   long id;
   cv::Mat image;
   cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
-  // std::vector<cv::KeyPoint> keypoints;
-  // cv::Mat descriptors;
-  // std::vector<long> landmark_ids;
   std::vector<Observation> observations;
 
 private:
