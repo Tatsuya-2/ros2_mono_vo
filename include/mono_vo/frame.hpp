@@ -3,6 +3,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
+#include "mono_vo/feature_extractor.hpp"
 #include "mono_vo/landmark.hpp"
 
 namespace mono_vo
@@ -24,6 +25,19 @@ class Frame
 {
 public:
   explicit Frame(const cv::Mat & image) : id(next_id_++), image(image.clone()) {}
+
+  static Frame create_from_image(const cv::Mat & image, const FeatureExtractor & extractor)
+  {
+    Frame frame(image);
+    std::vector<cv::KeyPoint> keypoints;
+    cv::Mat descriptors;
+    extractor.detect_and_compute(frame.image, keypoints, descriptors);
+    frame.observations.reserve(keypoints.size());
+    for (size_t i = 0; i < keypoints.size(); i++) {
+      frame.add_observation(keypoints[i], descriptors.row(i), -1);
+    }
+    return frame;
+  }
 
   void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id)
   {
