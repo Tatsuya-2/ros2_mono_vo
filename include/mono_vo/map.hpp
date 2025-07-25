@@ -22,6 +22,17 @@ public:
 
   const Landmark & get_landmark(long id) { return landmarks_.at(id); }
 
+  std::vector<cv::Point3f> get_observed_landmark_points(
+    const std::vector<Observation> & observations)
+  {
+    std::vector<cv::Point3f> points_3d;
+    points_3d.reserve(observations.size());
+    for (const auto & obs : observations) {
+      points_3d.push_back(landmarks_.at(obs.landmark_id).pose_w);
+    }
+    return points_3d;
+  }
+
   void add_keyframe(const std::shared_ptr<KeyFrame> & keyframe)
   {
     RCLCPP_INFO(logger_, "Adding keyframe %ld", keyframe->id);
