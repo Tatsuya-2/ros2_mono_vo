@@ -85,6 +85,8 @@ public:
         in_obs.push_back(observations[i]);
       }
     }
+    in_obs.shrink_to_fit();
+    observations = in_obs;
   }
 
   long id;
