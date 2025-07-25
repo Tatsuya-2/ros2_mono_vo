@@ -170,17 +170,21 @@ public:
     return points_3d;
   }
 
-  bool try_initializing(const cv::Mat & grey_img, const cv::Mat & K)
+  std::optional<Frame> try_initializing(const Frame & frame, const cv::Mat & K)
   {
-    Frame cur_frame{grey_img};
+    if (state_ == State::INITIALIZED) {
+      return ref_frame_;
+    }
+
+    Frame cur_frame{frame};
     cur_frame.extract_features(feature_extractor_);
 
     if (state_ == State::OBTAINING_REF) {
-      if (!good_keypoint_distribution(cur_frame)) return false;
+      if (!good_keypoint_distribution(cur_frame)) return std::nullopt;
       RCLCPP_INFO(logger_, "found good reference frame");
       ref_frame_ = std::move(cur_frame);
       state_ = State::INITIALIZING;
-      return false;
+      return std::nullopt;
     }
 
     if (state_ == State::INITIALIZING) {
@@ -201,7 +205,7 @@ public:
           RCLCPP_WARN(logger_, "Resetting state");
           reset();
         }
-        return false;
+        return std::nullopt;
       }
 
       cv::Mat img_matches;
@@ -221,7 +225,7 @@ public:
       std::vector<cv::Point2f> pts_cur = cur_frame.get_points_2d();
       if (!check_parallax(pts_ref, pts_cur)) {
         RCLCPP_WARN(logger_, "Parallax check failed");
-        return false;
+        return std::nullopt;
       }
 
       RCLCPP_INFO(logger_, "Parallax check passed");
@@ -249,9 +253,6 @@ public:
       ref_frame_.filter_observations_by_mask(inlier_mask);
       cur_frame.filter_observations_by_mask(inlier_mask);
 
-      std::vector<cv::Point2f> inlier_pts_ref = ref_frame_.get_points_2d();
-      std::vector<cv::Point2f> inlier_pts_cur = cur_frame.get_points_2d();
-
       // triangulate points
 
       std::vector<uchar> inliers;
@@ -259,14 +260,14 @@ public:
         traingulate_points(K, R, t, ref_frame_.get_points_2d(), cur_frame.get_points_2d(), inliers);
 
       // filter chirality check passed points
-      ref_frame_.filter_observations_by_mask(inliers);
+      // ref_frame_.filter_observations_by_mask(inliers);
       cur_frame.filter_observations_by_mask(inliers);
 
       // check min 4 points are valid for PnP later
-      if (cur_frame.observations.size() < 4) {
+      if (pts3d.size() < 4) {
         RCLCPP_WARN(logger_, "Less than 4 points triangulated: resetting initializer");
         reset();
-        return false;
+        return std::nullopt;
       }
 
       // add origin keyframe
@@ -274,7 +275,7 @@ public:
         std::make_shared<KeyFrame>(cv::Affine3d(cv::Matx33d::eye(), cv::Vec3d::zeros()));
       map_->add_keyframe(origin_keyframe);
 
-      // KeyFrame::Ptr keyframe = std::make_shared<KeyFrame>(cv::Affine3d(R, t));
+      // set frame pose
       cur_frame.pose_wc = cv::Affine3d(R, t);
 
       // filter based on new 3D landmarks
@@ -289,10 +290,11 @@ public:
       cv::imshow("Matches", img_matches);
       cv::waitKey(0);
 
+      ref_frame_ = cur_frame;
       state_ = State::INITIALIZED;
-      return true;
+      return ref_frame_;
     }
-    return false;
+    return std::nullopt;
   }
 
 private:
