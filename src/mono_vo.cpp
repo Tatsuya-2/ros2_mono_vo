@@ -6,7 +6,7 @@ namespace mono_vo
 {
 
 MonoVO::MonoVO(const rclcpp::NodeOptions & options)
-: Node("mono_vo", options), map_(std::make_shared<Map>()), initializer_(map_)
+: Node("mono_vo", options), map_(std::make_shared<Map>()), initializer_(map_), tracker_(map_)
 {
   this->setup();
 }
@@ -47,14 +47,19 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     RCLCPP_ERROR(get_logger(), "cv_bridge exception: %s", e.what());
     return;
   }
-  cv::Mat image = cv_ptr->image;
+
+  Frame frame{cv_ptr->image};
 
   if (!initializer_.is_initalized()) {
-    initializer_.try_initializing(image, K_.value());
+    std::optional<Frame> ref_frame = initializer_.try_initializing(frame, K_.value());
+    if (ref_frame.has_value()) {
+      tracker_.update(ref_frame.value(), K_.value(), d_.value());
+      RCLCPP_INFO(this->get_logger(), "Initialized");
+    }
     return;
   }
 
-  RCLCPP_INFO(this->get_logger(), "Initialized");
+  tracker_.update(frame, K_.value(), d_.value());
 }
 
 void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg)
@@ -64,6 +69,7 @@ void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstShare
   if (K_.has_value()) return;
 
   K_ = cv::Mat(3, 3, CV_64F, const_cast<double *>(msg->k.data())).clone();
+  d_ = cv::Mat(1, 5, CV_64F, const_cast<double *>(msg->d.data())).clone();
 }
 
 }  // namespace mono_vo

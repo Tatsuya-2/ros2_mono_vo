@@ -12,6 +12,7 @@
 
 #include "mono_vo/initializer.hpp"
 #include "mono_vo/map.hpp"
+#include "mono_vo/tracker.hpp"
 
 namespace mono_vo
 {
@@ -35,8 +36,10 @@ private:
 
   std::shared_ptr<Map> map_;
   Initializer initializer_;
+  Tracker tracker_;
 
   std::optional<cv::Mat> K_;
+  std::optional<cv::Mat> d_;
 };
 
 }  // namespace mono_vo
