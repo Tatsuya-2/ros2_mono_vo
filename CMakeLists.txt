@@ -10,6 +10,7 @@ find_package(rclcpp REQUIRED)
 find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2 REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 
@@ -36,6 +37,7 @@ ament_target_dependencies(${TARGET_NAME}
   rclcpp_components
   sensor_msgs
   geometry_msgs
+  tf2
   cv_bridge
 )
 
