@@ -208,11 +208,6 @@ public:
         return std::nullopt;
       }
 
-      cv::Mat img_matches;
-      cv::drawMatches(
-        ref_frame_.image, ref_frame_.get_keypoints(), cur_frame.image, cur_frame.get_keypoints(),
-        good_matches, img_matches);
-
       std::vector<Observation> new_ref_observations, new_cur_observations;
       for (const auto & match : good_matches) {
         new_ref_observations.push_back(ref_frame_.observations[match.queryIdx]);
@@ -220,6 +215,10 @@ public:
       }
       ref_frame_.observations = std::move(new_ref_observations);
       cur_frame.observations = std::move(new_cur_observations);
+
+      cv::Mat img_matches = utils::draw_matched_frames(ref_frame_, cur_frame);
+      cv::imshow("Matches", img_matches);
+      cv::waitKey(1);
 
       std::vector<cv::Point2f> pts_ref = ref_frame_.get_points_2d();
       std::vector<cv::Point2f> pts_cur = cur_frame.get_points_2d();
@@ -260,7 +259,7 @@ public:
         traingulate_points(K, R, t, ref_frame_.get_points_2d(), cur_frame.get_points_2d(), inliers);
 
       // filter chirality check passed points
-      // ref_frame_.filter_observations_by_mask(inliers);
+      ref_frame_.filter_observations_by_mask(inliers);  // only used for vis after this
       cur_frame.filter_observations_by_mask(inliers);
 
       // check min 4 points are valid for PnP later
@@ -287,8 +286,9 @@ public:
 
       map_->add_keyframe(std::make_shared<KeyFrame>(cur_frame));
 
+      img_matches = utils::draw_matched_frames(ref_frame_, cur_frame);
       cv::imshow("Matches", img_matches);
-      cv::waitKey(0);
+      cv::waitKey(1);
 
       ref_frame_ = cur_frame;
       state_ = State::INITIALIZED;
