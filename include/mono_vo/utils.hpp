@@ -1,5 +1,9 @@
 #pragma once
 
+#include <tf2/LinearMath/Matrix3x3.h>
+#include <tf2/LinearMath/Quaternion.h>
+
+#include <builtin_interfaces/msg/time.hpp>
 #include <opencv2/opencv.hpp>
 
 #include "mono_vo/frame.hpp"
@@ -95,6 +99,44 @@ cv::Mat draw_matched_frames(
   }
 
   return combined_img;
+}
+
+geometry_msgs::msg::PoseStamped affine3d_to_pose_stamped_msg(
+  const cv::Affine3d & affine_pose, const std::string & frame_id = "base_link",
+  const builtin_interfaces::msg::Time & timestamp = builtin_interfaces::msg::Time())
+{
+  geometry_msgs::msg::PoseStamped pose_stamped;
+
+  // Set header
+  pose_stamped.header.frame_id = frame_id;
+  pose_stamped.header.stamp = timestamp;
+
+  // Extract translation from affine transform
+  cv::Vec3d translation = affine_pose.translation();
+  pose_stamped.pose.position.x = translation[0];
+  pose_stamped.pose.position.y = translation[1];
+  pose_stamped.pose.position.z = translation[2];
+
+  // Extract rotation matrix from affine transform
+  const cv::Matx33d & rotation_matrix = affine_pose.rotation();
+
+  // Convert rotation matrix to tf2::Matrix3x3
+  tf2::Matrix3x3 tf_rotation(
+    rotation_matrix(0, 0), rotation_matrix(0, 1), rotation_matrix(0, 2), rotation_matrix(1, 0),
+    rotation_matrix(1, 1), rotation_matrix(1, 2), rotation_matrix(2, 0), rotation_matrix(2, 1),
+    rotation_matrix(2, 2));
+
+  // Convert to quaternion
+  tf2::Quaternion quaternion;
+  tf_rotation.getRotation(quaternion);
+
+  // Set quaternion in pose message
+  pose_stamped.pose.orientation.x = quaternion.x();
+  pose_stamped.pose.orientation.y = quaternion.y();
+  pose_stamped.pose.orientation.z = quaternion.z();
+  pose_stamped.pose.orientation.w = quaternion.w();
+
+  return pose_stamped;
 }
 }  // namespace utils
 }  // namespace mono_vo
