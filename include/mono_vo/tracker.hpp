@@ -52,13 +52,13 @@ public:
 
   TrackerState get_state() const { return state_; }
 
-  void update(const Frame & frame, const cv::Mat & K, const cv::Mat & d)
+  std::optional<cv::Affine3d> update(const Frame & frame, const cv::Mat & K, const cv::Mat & d)
   {
     // set first frame
     if (state_ == TrackerState::INITIALIZING) {
       prev_frame_ = frame;
       state_ = TrackerState::TRACKING;
-      return;
+      return std::nullopt;
     }
 
     // --- track points with optical flow ---
@@ -74,7 +74,7 @@ public:
     if (new_frame.observations.size() < min_tracked_points_) {
       RCLCPP_WARN(logger_, "Not enough keypoints were tracked");
       // TODO: handle logic here
-      return;
+      return std::nullopt;
     }
 
     // --- solve PnP ---
@@ -108,7 +108,8 @@ public:
     RCLCPP_INFO(logger_, "%s", ss.str().c_str());
 
     // update last frame
-    prev_frame_ = new_frame;
+    prev_frame_ = std::move(new_frame);
+    return prev_frame_.pose_wc;
   }
 
 private:
