@@ -1,6 +1,9 @@
+#include "mono_vo/mono_vo.hpp"
+
 #include <cv_bridge/cv_bridge.hpp>
 #include <functional>
-#include <mono_vo/mono_vo.hpp>
+
+#include "mono_vo/utils.hpp"
 
 namespace mono_vo
 {
@@ -59,7 +62,13 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     return;
   }
 
-  tracker_.update(frame, K_.value(), d_.value());
+  std::optional<cv::Affine3d> pose = tracker_.update(frame, K_.value(), d_.value());
+
+  if (pose.has_value()) {
+    geometry_msgs::msg::PoseStamped pose_msg =
+      utils::affine3d_to_pose_stamped_msg(pose.value(), "base_link", msg->header.stamp);
+    pose_pub_->publish(pose_msg);
+  }
 }
 
 void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg)
