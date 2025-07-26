@@ -10,6 +10,7 @@
 #include "mono_vo/keyframe.hpp"
 #include "mono_vo/landmark.hpp"
 #include "mono_vo/map.hpp"
+#include "mono_vo/utils.hpp"
 
 namespace mono_vo
 {
@@ -63,6 +64,10 @@ public:
     // --- track points with optical flow ---
     Frame new_frame = track_frame_with_optical_flow(frame.image);
 
+    cv::Mat img_matches = utils::draw_matched_frames(prev_frame_, new_frame);
+    cv::imshow("Matches", img_matches);
+    cv::waitKey(1);
+
     RCLCPP_INFO(logger_, "Tracked %zu points using optical flow", new_frame.observations.size());
 
     // check if enough points were tracked
@@ -73,15 +78,11 @@ public:
     }
 
     // --- solve PnP ---
-    // get new frame tracked 2D points
-    auto new_2dps = new_frame.get_points_2d();
+    // get new frame tracked 2D and corresponding 3D points
+    auto [new_2dps, new_3dps] =
+      map_->get_observation_landmark_point_correspondences(new_frame.observations);
 
-    RCLCPP_INFO(logger_, "Got %zu 2D points from tracking", new_2dps.size());
-
-    // get new frame tracked 3D points
-    auto new_3dps = map_->get_observed_landmark_points(new_frame.observations);
-
-    RCLCPP_INFO(logger_, "Got %zu 3D points from tracking", new_3dps.size());
+    RCLCPP_INFO(logger_, "Got %zu 3D point correspondences from tracking", new_3dps.size());
 
     // Transform that brings point in world to camera frame
     cv::Mat rvec;     // rotation vector in 3x1 format (Rodrigues format)
