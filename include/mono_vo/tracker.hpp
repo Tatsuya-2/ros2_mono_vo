@@ -102,6 +102,39 @@ public:
     //        significant_motion(frame);
   }
 
+  bool has_parallax(const Frame & frame)
+  {
+    auto pts1 = map_->get_last_keyframe()->get_points_2d();
+    auto pts2 = frame.get_points_2d();
+    // calculate homography
+    std::vector<uchar> inliers_h;
+    cv::findHomography(pts1, pts2, cv::RANSAC, ransac_reprojection_thresh_, inliers_h);
+    int score_h = cv::countNonZero(inliers_h);
+
+    // calculate fundamental
+    std::vector<uchar> inliers_f;
+    cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC, ransac_reprojection_thresh_, 0.99, inliers_f);
+    int score_f = cv::countNonZero(inliers_f);
+
+    RCLCPP_INFO(logger_, "score h: %d, score f: %d", score_h, score_f);
+    // check 1: min inliers
+    if (static_cast<double>(score_f) / pts1.size() < f_inlier_thresh_) {
+      return false;
+    }
+
+    auto model_score = static_cast<double>(score_h) / static_cast<double>(score_f);
+    RCLCPP_INFO(logger_, "score_h/score_f = %lf", model_score);
+
+    // check 2: Is the Fundamental Matrix a significantly better model?
+    // The ratio score_H / score_F should be low.
+    // A high ratio means Homography explains the data almost as well as Fundamental Matrix.
+    if (model_score > model_score_thresh_) {
+      return false;
+    }
+
+    return true;
+  }
+
   TrackerState get_state() const { return state_; }
 
   std::optional<cv::Affine3d> update(const Frame & frame, const cv::Mat & K, const cv::Mat & d)
@@ -156,7 +189,10 @@ public:
 
     tracking_count_from_keyframe_++;
     if (should_add_keyframe(new_frame)) {
-      // check if has enough baseline
+      // check if has enough parallax
+      if (has_parallax(new_frame)) {
+        RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
+      }
     }
 
     std::stringstream ss;
@@ -182,5 +218,8 @@ private:
   size_t tracking_count_from_keyframe_ = 0;
   double max_rotation_from_keyframe_ = M_PI / 12.0;  // in radians (15 degrees)
   double max_translation_from_keyframe_ = 0.3;       // in meters
+  double ransac_reprojection_thresh_ = 3.0;
+  double model_score_thresh_ = 0.95;
+  double f_inlier_thresh_ = 0.5;
 };
 }  // namespace mono_vo
