@@ -47,7 +47,58 @@ public:
           prev_frame_.observations[i].landmark_id);
       }
     }
+    new_frame.is_tracked = true;
     return new_frame;
+  }
+
+  // check if pose difference between frames is significant
+  bool significant_motion(const Frame & frame)
+  {
+    // get relative pose
+    cv::Affine3d relative_pose = prev_frame_.pose_wc.inv() * frame.pose_wc;
+
+    if (cv::norm(relative_pose.matrix) > max_translation_from_keyframe_) {
+      RCLCPP_WARN(logger_, "translation exceeds threshold");
+      return true;
+    }
+
+    cv::Matx33d rotation_matrix = relative_pose.rotation();
+
+    // Convert the rotation matrix to an axis-angle rotation vector
+    cv::Vec3d rotation_vector;
+    cv::Rodrigues(rotation_matrix, rotation_vector);
+
+    // The magnitude of the rotation vector is the angle in radians
+    if (cv::norm(rotation_vector) > max_rotation_from_keyframe_) {
+      RCLCPP_WARN(logger_, "rotation exceeds threshold");
+      return true;
+    }
+
+    return false;
+  }
+
+  bool should_add_keyframe(const Frame & frame)
+  {
+    if (frame.observations.size() < min_observations_before_triangulation_) {
+      RCLCPP_WARN(logger_, "Not enough 3D points for triangulation");
+      return true;
+    }
+
+    if (tracking_count_from_keyframe_ > max_tracking_after_keyframe_) {
+      RCLCPP_WARN(logger_, "Not enough tracking after keyframe");
+      return true;
+    }
+
+    if (significant_motion(frame)) {
+      RCLCPP_WARN(logger_, "Significant motion");
+      return true;
+    }
+
+    return false;
+
+    // return frame.observations.size() < min_observations_before_triangulation_ ||
+    //        tracking_count_from_keyframe_++ > max_tracking_after_keyframe_ ||
+    //        significant_motion(frame);
   }
 
   TrackerState get_state() const { return state_; }
@@ -102,6 +153,11 @@ public:
     cv::Mat t_cw = -R_cw * tvec;
     new_frame.pose_wc = cv::Affine3d(R_cw, t_cw);
 
+    tracking_count_from_keyframe_++;
+    if (should_add_keyframe(new_frame)) {
+      // check if has enough baseline
+    }
+
     std::stringstream ss;
     ss << "Camera pose rotation: \n" << R_cw << std::endl;
     ss << "Camera pose translation: \n" << t_cw << std::endl;
@@ -119,6 +175,11 @@ private:
   FeatureExtractor::Ptr feature_extractor_;
   rclcpp::Logger logger_;
   float tracking_error_thresh_ = 30.0;
+  size_t min_observations_before_triangulation_ = 300;
   size_t min_tracked_points_ = 10;
+  size_t max_tracking_after_keyframe_ = 10;
+  size_t tracking_count_from_keyframe_ = 0;
+  double max_rotation_from_keyframe_ = M_PI / 12.0;  // in radians (15 degrees)
+  double max_translation_from_keyframe_ = 0.3;       // in meters
 };
 }  // namespace mono_vo
