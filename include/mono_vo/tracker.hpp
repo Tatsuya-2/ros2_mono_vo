@@ -55,7 +55,8 @@ public:
   bool significant_motion(const Frame & frame)
   {
     // get relative pose
-    cv::Affine3d relative_pose = prev_frame_.pose_wc.inv() * frame.pose_wc;
+    KeyFrame::Ptr prev_kframe = map_->get_last_keyframe();
+    cv::Affine3d relative_pose = prev_kframe->pose_wc.inv() * frame.pose_wc;
 
     if (cv::norm(relative_pose.matrix) > max_translation_from_keyframe_) {
       RCLCPP_WARN(logger_, "translation exceeds threshold");
@@ -175,7 +176,7 @@ private:
   FeatureExtractor::Ptr feature_extractor_;
   rclcpp::Logger logger_;
   float tracking_error_thresh_ = 30.0;
-  size_t min_observations_before_triangulation_ = 300;
+  size_t min_observations_before_triangulation_ = 100;
   size_t min_tracked_points_ = 10;
   size_t max_tracking_after_keyframe_ = 10;
   size_t tracking_count_from_keyframe_ = 0;
