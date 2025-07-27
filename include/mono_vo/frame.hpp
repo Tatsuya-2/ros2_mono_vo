@@ -93,6 +93,8 @@ public:
   cv::Mat image;
   cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
   std::vector<Observation> observations;
+  bool is_tracked =
+    false;  // indicates if the frame has passed the tracking stage which invalidates keypoint fields
 };
 
 }  // namespace mono_vo
