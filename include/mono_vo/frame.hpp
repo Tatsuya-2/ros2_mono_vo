@@ -53,6 +53,16 @@ public:
     return points_2d;
   }
 
+  std::vector<long> get_landmark_ids() const
+  {
+    std::vector<long> landmark_ids;
+    landmark_ids.reserve(observations.size());
+    for (const auto & obs : observations) {
+      landmark_ids.push_back(obs.landmark_id);
+    }
+    return landmark_ids;
+  }
+
   std::vector<cv::KeyPoint> get_keypoints() const
   {
     std::vector<cv::KeyPoint> keypoints;
