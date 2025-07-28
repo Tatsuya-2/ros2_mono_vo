@@ -30,12 +30,21 @@ public:
     id = next_id_++;
     pose_wc = frame.pose_wc;
     observations = frame.observations;
+    landmark_id_to_observation.reserve(observations.size());
+    for (auto & obs : observations) {
+      if (obs.landmark_id != -1) {
+        landmark_id_to_observation[obs.landmark_id] = &obs;
+      }
+    }
   }
 
   void add_observation(
     const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id = -1)
   {
     observations.emplace_back(keypoint, descriptor, landmark_id);
+    if (landmark_id != -1) {
+      landmark_id_to_observation[landmark_id] = &observations.back();
+    }
   }
 
   std::vector<cv::Point2f> get_points_2d() const
@@ -53,10 +62,7 @@ public:
     std::vector<cv::Point2f> points_2d;
     points_2d.reserve(landmark_ids.size());
     for (const auto landmark_id : landmark_ids) {
-      if (const auto obs = std::find_if(
-            observations.begin(), observations.end(),
-            [landmark_id](const Observation & obs) { return obs.landmark_id == landmark_id; });
-          obs != observations.end()) {
+      if (auto obs = landmark_id_to_observation.at(landmark_id); obs != nullptr) {
         points_2d.push_back(obs->keypoint.pt);
       }
     }
@@ -94,6 +100,7 @@ public:
 
 private:
   static long next_id_;
+  std::unordered_map<long, Observation *> landmark_id_to_observation;
 };
 
 long KeyFrame::next_id_ = 0;
