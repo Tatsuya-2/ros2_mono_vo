@@ -104,7 +104,7 @@ public:
 
   bool has_parallax(const Frame & frame)
   {
-    auto pts1 = map_->get_last_keyframe()->get_points_2d();
+    auto pts1 = map_->get_last_keyframe()->get_points_2d_for_landmarks(frame.get_landmark_ids());
     auto pts2 = frame.get_points_2d();
     // calculate homography
     std::vector<uchar> inliers_h;
@@ -188,9 +188,9 @@ public:
     tracking_count_from_keyframe_++;
     if (should_add_keyframe(new_frame)) {
       // check if has enough parallax
-      // if (has_parallax(new_frame)) {
-      //   RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
-      // }
+      if (has_parallax(new_frame)) {
+        RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
+      }
     }
 
     std::stringstream ss;
