@@ -91,7 +91,7 @@ public:
 
   long id;
   cv::Mat image;
-  cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
+  cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc), takes point in camera to world
   std::vector<Observation> observations;
   bool is_tracked =
     false;  // indicates if the frame has passed the tracking stage which invalidates keypoint fields

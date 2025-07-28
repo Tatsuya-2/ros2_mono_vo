@@ -118,16 +118,16 @@ public:
    * @return A 3d point vector.
    */
   std::vector<cv::Point3f> traingulate_points(
-    const cv::Mat & K, const cv::Mat & R, const cv::Mat & t,
+    const cv::Mat & K, const cv::Mat & R_cw, const cv::Mat & t_cw,
     const std::vector<cv::Point2f> & ref_points, const std::vector<cv::Point2f> & cur_points,
     std::vector<uchar> & inliers)
   {
     // get projection matrices
     cv::Mat P_ref = K * cv::Mat::eye(3, 4, CV_64F);  // P_ref = K * [I | 0]
 
-    cv::Mat Rt;
-    cv::hconcat(R, t, Rt);
-    cv::Mat P_cur = K * Rt;  // P_cur = K * [R | t]
+    cv::Mat Rt_cw;
+    cv::hconcat(R_cw, t_cw, Rt_cw);
+    cv::Mat P_cur = K * Rt_cw;  // P_cur = K * [R | t]
 
     cv::Mat pts4d_h;  // Output is 4xN matrix of homogeneous 3D points
     cv::triangulatePoints(P_ref, P_cur, ref_points, cur_points, pts4d_h);
@@ -139,7 +139,7 @@ public:
     cv::convertPointsFromHomogeneous(pts4d_h.t(), pts3d);
 
     // chirality check:check if point is in front of both reference and current camera frame
-    auto is_infront = [&R, &t](const cv::Point3f & p3d) {
+    auto is_infront = [&R_cw, &t_cw](const cv::Point3f & p3d) {
       // check if point is in front of the reference camera
       if (p3d.z <= 0) {
         return false;
@@ -147,7 +147,7 @@ public:
 
       // Transform the 3D point into the current camera's coordinate system.
       cv::Mat p3d_mat = (cv::Mat_<double>(3, 1) << p3d.x, p3d.y, p3d.z);
-      cv::Mat p3d_cur_mat = R * p3d_mat + t;
+      cv::Mat p3d_cur_mat = R_cw * p3d_mat + t_cw;
       return p3d_cur_mat.at<double>(2, 0) > 0;
     };
 
@@ -237,16 +237,15 @@ public:
         static_cast<double>(cv::countNonZero(inlier_mask)) / pts_ref.size());
 
       // decompose to get rotation and translation
-      cv::Mat R, t;
-      cv::recoverPose(E, pts_ref, pts_cur, K, R, t, inlier_mask);
+      cv::Mat R_cw, t_cw;
+      cv::recoverPose(E, pts_ref, pts_cur, K, R_cw, t_cw, inlier_mask);
 
       uint32_t num_inliers = cv::countNonZero(inlier_mask);
 
       // print R,t and inliers
-      std::cout << "R:\n" << R << std::endl;
-      std::cout << "t:\n" << t << std::endl;
-      std::cout << "Inlier  ratio:\n"
-                << static_cast<double>(num_inliers) / pts_ref.size() << std::endl;
+      RCLCPP_INFO(
+        logger_, "Inlier ratio after pose recovery: %lf",
+        static_cast<double>(num_inliers) / pts_ref.size());
 
       // filter points
       ref_frame_.filter_observations_by_mask(inlier_mask);
@@ -255,8 +254,8 @@ public:
       // triangulate points
 
       std::vector<uchar> inliers;
-      std::vector<cv::Point3f> pts3d =
-        traingulate_points(K, R, t, ref_frame_.get_points_2d(), cur_frame.get_points_2d(), inliers);
+      std::vector<cv::Point3f> pts3d = traingulate_points(
+        K, R_cw, t_cw, ref_frame_.get_points_2d(), cur_frame.get_points_2d(), inliers);
 
       // filter chirality check passed points
       ref_frame_.filter_observations_by_mask(inliers);  // only used for vis after this
@@ -275,7 +274,7 @@ public:
       map_->add_keyframe(origin_keyframe);
 
       // set frame pose
-      cur_frame.pose_wc = cv::Affine3d(R, t);
+      cur_frame.pose_wc = cv::Affine3d(R_cw, t_cw).inv();
 
       // filter based on new 3D landmarks
       for (size_t i = 0; i < pts3d.size(); ++i) {

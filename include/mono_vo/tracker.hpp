@@ -56,22 +56,22 @@ public:
   {
     // get relative pose
     KeyFrame::Ptr prev_kframe = map_->get_last_keyframe();
-    cv::Affine3d relative_pose = prev_kframe->pose_wc.inv() * frame.pose_wc;
+    cv::Affine3d relative_pose = frame.pose_wc.inv() * prev_kframe->pose_wc;
 
-    if (cv::norm(relative_pose.matrix) > max_translation_from_keyframe_) {
-      RCLCPP_WARN(logger_, "translation exceeds threshold");
+    double translation = cv::norm(relative_pose.translation());
+
+    if (translation > max_translation_from_keyframe_) {
+      RCLCPP_WARN(logger_, "translation exceeds threshold: %lf", translation);
       return true;
     }
-
-    cv::Matx33d rotation_matrix = relative_pose.rotation();
-
     // Convert the rotation matrix to an axis-angle rotation vector
-    cv::Vec3d rotation_vector;
-    cv::Rodrigues(rotation_matrix, rotation_vector);
+    cv::Matx33d R = relative_pose.rotation();
+    double trace = R(0, 0) + R(1, 1) + R(2, 2);
+    double rotation = std::acos((trace - 1.0) / 2.0);  // angle in radians
 
     // The magnitude of the rotation vector is the angle in radians
-    if (cv::norm(rotation_vector) > max_rotation_from_keyframe_) {
-      RCLCPP_WARN(logger_, "rotation exceeds threshold");
+    if (rotation > max_rotation_from_keyframe_) {
+      RCLCPP_WARN(logger_, "rotation exceeds threshold: %lf", rotation);
       return true;
     }
 
@@ -85,10 +85,10 @@ public:
       return true;
     }
 
-    if (tracking_count_from_keyframe_ > max_tracking_after_keyframe_) {
-      RCLCPP_WARN(logger_, "Not enough tracking after keyframe");
-      return true;
-    }
+    // if (tracking_count_from_keyframe_ > max_tracking_after_keyframe_) {
+    //   RCLCPP_WARN(logger_, "Not enough tracking after keyframe");
+    //   return true;
+    // }
 
     if (significant_motion(frame)) {
       RCLCPP_WARN(logger_, "Significant motion");
@@ -183,21 +183,18 @@ public:
     // get camera pose in world frame
     cv::Mat R;
     cv::Rodrigues(rvec, R);
-    cv::Mat R_cw = R.t();
-    cv::Mat t_cw = -R_cw * tvec;
-    new_frame.pose_wc = cv::Affine3d(R_cw, t_cw);
+    new_frame.pose_wc = cv::Affine3d(R, tvec).inv();
 
     tracking_count_from_keyframe_++;
     if (should_add_keyframe(new_frame)) {
       // check if has enough parallax
-      if (has_parallax(new_frame)) {
-        RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
-      }
+      // if (has_parallax(new_frame)) {
+      //   RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
+      // }
     }
 
     std::stringstream ss;
-    ss << "Camera pose rotation: \n" << R_cw << std::endl;
-    ss << "Camera pose translation: \n" << t_cw << std::endl;
+    ss << "Camera pose transform wc: \n" << new_frame.pose_wc.matrix << std::endl;
     RCLCPP_INFO(logger_, "%s", ss.str().c_str());
 
     // update last frame
@@ -217,7 +214,7 @@ private:
   size_t max_tracking_after_keyframe_ = 10;
   size_t tracking_count_from_keyframe_ = 0;
   double max_rotation_from_keyframe_ = M_PI / 12.0;  // in radians (15 degrees)
-  double max_translation_from_keyframe_ = 0.3;       // in meters
+  double max_translation_from_keyframe_ = 1.0;       // in meters
   double ransac_reprojection_thresh_ = 3.0;
   double model_score_thresh_ = 0.95;
   double f_inlier_thresh_ = 0.5;

@@ -71,7 +71,8 @@ public:
   }
 
   long id;
-  cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
+  cv::Affine3d
+    pose_wc;  // Pose of the camera in the world (T_wc), takes point in camera to the world frame
   std::vector<Observation> observations;
 
 private:
