@@ -85,10 +85,10 @@ public:
       return true;
     }
 
-    // if (tracking_count_from_keyframe_ > max_tracking_after_keyframe_) {
-    //   RCLCPP_WARN(logger_, "Not enough tracking after keyframe");
-    //   return true;
-    // }
+    if (tracking_count_from_keyframe_ > max_tracking_after_keyframe_) {
+      RCLCPP_WARN(logger_, "Not enough tracking after keyframe");
+      return true;
+    }
 
     if (significant_motion(frame)) {
       RCLCPP_WARN(logger_, "Significant motion");
