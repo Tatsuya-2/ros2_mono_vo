@@ -1,6 +1,7 @@
 // mono_vo/keyframe.h
 #pragma once
 
+#include <algorithm>
 #include <opencv2/opencv.hpp>
 #include <vector>
 
@@ -44,6 +45,22 @@ public:
     for (const auto & obs : observations) {
       points_2d.push_back(obs.keypoint.pt);
     }
+    return points_2d;
+  }
+
+  std::vector<cv::Point2f> get_points_2d_for_landmarks(const std::vector<long> & landmark_ids) const
+  {
+    std::vector<cv::Point2f> points_2d;
+    points_2d.reserve(landmark_ids.size());
+    for (const auto landmark_id : landmark_ids) {
+      if (const auto obs = std::find_if(
+            observations.begin(), observations.end(),
+            [landmark_id](const Observation & obs) { return obs.landmark_id == landmark_id; });
+          obs != observations.end()) {
+        points_2d.push_back(obs->keypoint.pt);
+      }
+    }
+    points_2d.shrink_to_fit();
     return points_2d;
   }
 
