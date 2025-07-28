@@ -56,7 +56,7 @@ public:
   {
     // get relative pose
     KeyFrame::Ptr prev_kframe = map_->get_last_keyframe();
-    cv::Affine3d relative_pose = frame.pose_wc.inv() * prev_kframe->pose_wc;
+    cv::Affine3d relative_pose = prev_kframe->pose_wc.inv() * frame.pose_wc;
 
     double translation = cv::norm(relative_pose.translation());
 
