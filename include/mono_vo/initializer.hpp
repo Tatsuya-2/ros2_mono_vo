@@ -192,8 +192,8 @@ public:
       auto ref_descriptors = ref_frame_.get_descriptors();
       auto cur_descriptors = cur_frame.get_descriptors();
 
-      std::vector<cv::DMatch> good_matches = feature_extractor_->find_matches(
-        ref_descriptors, cur_descriptors, match_distance_thresh_ratio_);
+      std::vector<cv::DMatch> good_matches =
+        feature_extractor_->find_matches(ref_descriptors, cur_descriptors, lowes_distance_ratio_);
 
       if (good_matches.size() < min_matches_for_parallax_) {
         RCLCPP_WARN(logger_, "Initializer: Not enough matches");
@@ -302,7 +302,7 @@ private:
   State state_;
   Frame ref_frame_;
   float distribution_thresh_;
-  double match_distance_thresh_ratio_ = 0.7;
+  double lowes_distance_ratio_ = 0.7;
   double min_matches_for_parallax_ = 100;
   double ransac_thresh_h_ = 2.0;      // px homography RANSAC threshold
   double ransac_thresh_f_ = 1.0;      // px fundamental RANSAC threshold

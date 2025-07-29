@@ -37,12 +37,11 @@ public:
    *
    * @param descriptors1 Descriptors from the first image.
    * @param descriptors2 Descriptors from the second image.
-   * @param distance_threshold_ratio The distance ratio between the best and second best match.
+   * @param lowes_distance_ratio The distance ratio between the best and second best match.
    * @return A vector of DMatch objects, where each match is represented by a DMatch object.
    */
   std::vector<cv::DMatch> find_matches(
-    const cv::Mat & descriptors1, const cv::Mat & descriptors2,
-    double distance_threshold_ratio) const
+    const cv::Mat & descriptors1, const cv::Mat & descriptors2, double lowes_distance_ratio) const
   {
     std::vector<std::vector<cv::DMatch>> knn_matches;
     matcher_.knnMatch(descriptors1, descriptors2, knn_matches, 2);
@@ -50,7 +49,7 @@ public:
 
     std::vector<cv::DMatch> good_matches;
     for (auto & match : knn_matches) {
-      if (match.size() == 2 && match[0].distance < distance_threshold_ratio * match[1].distance) {
+      if (match.size() == 2 && match[0].distance < lowes_distance_ratio * match[1].distance) {
         good_matches.push_back(match[0]);
       }
     }
