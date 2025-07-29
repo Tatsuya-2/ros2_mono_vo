@@ -102,6 +102,24 @@ public:
     //        significant_motion(frame);
   }
 
+  void traingulate_new_points(const Frame & frame)
+  {
+    // detect new features from frame
+
+    // TODO store all keypoints in keyframes, regardless of matched.
+    // find matches with the previous keyframe points that dont have landmarks.
+
+    // use recovered pose from PnP and previous keyframe pose to get projection matrices
+
+    // triangulate new 3D points and add to map
+
+    // filter outlier 2D points from frame and set last_frame
+
+    // set new keyframe with all detected keypoints
+
+    // reset the tracking count
+  }
+
   bool has_parallax(const Frame & frame)
   {
     auto pts1 = map_->get_last_keyframe()->get_points_2d_for_landmarks(frame.get_landmark_ids());
