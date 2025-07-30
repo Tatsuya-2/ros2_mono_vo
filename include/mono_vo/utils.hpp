@@ -101,6 +101,95 @@ cv::Mat draw_matched_frames(
   return combined_img;
 }
 
+/**
+ * @brief Draws matched points between two images.
+ *
+ * This function takes two input images and their corresponding matched points, 
+ * draws circles around the matched points, and connects them with lines. The 
+ * images are concatenated side by side, and matches are drawn with random colors 
+ * for better visualization.
+ *
+ * @param img1 First input image.
+ * @param img2 Second input image.
+ * @param points1 Matched points in the first image.
+ * @param points2 Matched points in the second image.
+ * @param point_radius Radius of the circles drawn around matched points. Default is 4.
+ * @param line_thickness Thickness of the lines connecting matched points. Default is 1.
+ *
+ * @return A single image with both input images side by side and matched points visualized.
+ */
+
+cv::Mat draw_matched_points(
+  const cv::Mat & img1, const cv::Mat & img2, const std::vector<cv::Point2f> & points1,
+  const std::vector<cv::Point2f> & points2, int point_radius = 4, int line_thickness = 1)
+{
+  // Ensure both images are grayscale
+  cv::Mat gray1, gray2;
+  if (img1.channels() == 3) {
+    cv::cvtColor(img1, gray1, cv::COLOR_BGR2GRAY);
+  } else {
+    gray1 = img1.clone();
+  }
+
+  if (img2.channels() == 3) {
+    cv::cvtColor(img2, gray2, cv::COLOR_BGR2GRAY);
+  } else {
+    gray2 = img2.clone();
+  }
+
+  // Create output image: concatenate images side by side
+  int height = std::max(gray1.rows, gray2.rows);
+  int width = gray1.cols + gray2.cols;
+
+  cv::Mat result = cv::Mat::zeros(height, width, CV_8UC3);
+
+  // Convert grayscale to BGR for colored output
+  cv::Mat color1, color2;
+  cv::cvtColor(gray1, color1, cv::COLOR_GRAY2BGR);
+  cv::cvtColor(gray2, color2, cv::COLOR_GRAY2BGR);
+
+  // Copy images to result
+  color1.copyTo(result(cv::Rect(0, 0, gray1.cols, gray1.rows)));
+  color2.copyTo(result(cv::Rect(gray1.cols, 0, gray2.cols, gray2.rows)));
+
+  // Check if point vectors have same size
+  size_t num_matches = std::min(points1.size(), points2.size());
+
+  // Color palette
+  std::vector<cv::Scalar> colors = {
+    cv::Scalar(0, 0, 255),    // Red
+    cv::Scalar(0, 255, 0),    // Green
+    cv::Scalar(255, 0, 0),    // Blue
+    cv::Scalar(255, 255, 0),  // Cyan
+    cv::Scalar(255, 0, 255),  // Magenta
+    cv::Scalar(0, 255, 255),  // Yellow
+    cv::Scalar(128, 0, 128),  // Purple
+    cv::Scalar(0, 128, 128)   // Teal
+  };
+
+  // Draw matches
+  for (size_t i = 0; i < num_matches; ++i) {
+    // Generate random color for this match
+    const cv::Scalar & color = colors[i % colors.size()];
+
+    // Points in original coordinates
+    cv::Point2f pt1 = points1[i];
+    cv::Point2f pt2 = points2[i];
+
+    // Adjust pt2 coordinates for concatenated image
+    cv::Point2f pt2_adjusted(pt2.x + gray1.cols, pt2.y);
+
+    // Draw circles at matched points
+    cv::circle(result, pt1, point_radius, color, -1);
+    cv::circle(result, pt2_adjusted, point_radius, color, -1);
+
+    // Draw line connecting the points
+    cv::line(result, pt1, pt2_adjusted, color, line_thickness);
+  }
+
+  return result;
+}
+
 geometry_msgs::msg::PoseStamped affine3d_to_pose_stamped_msg(
   const cv::Affine3d & affine_pose, const std::string & frame_id = "base_link",
   const builtin_interfaces::msg::Time & timestamp = builtin_interfaces::msg::Time())
