@@ -9,6 +9,7 @@
 #include "mono_vo/feature_extractor.hpp"
 #include "mono_vo/frame.hpp"
 #include "mono_vo/map.hpp"
+#include "mono_vo/match_data.hpp"
 #include "mono_vo/utils.hpp"
 
 namespace mono_vo
@@ -208,58 +209,62 @@ public:
         return std::nullopt;
       }
 
-      std::vector<Observation> new_ref_observations, new_cur_observations;
+      std::vector<MatchData> all_matches;
+      all_matches.reserve(good_matches.size());
       for (const auto & match : good_matches) {
-        new_ref_observations.push_back(ref_frame_.observations[match.queryIdx]);
-        new_cur_observations.push_back(cur_frame.observations[match.trainIdx]);
+        all_matches.emplace_back(
+          match.queryIdx, match.trainIdx, ref_frame_.observations[match.queryIdx].keypoint.pt,
+          cur_frame.observations[match.trainIdx].keypoint.pt);
       }
-      ref_frame_.observations = std::move(new_ref_observations);
-      cur_frame.observations = std::move(new_cur_observations);
 
-      cv::Mat img_matches = utils::draw_matched_frames(ref_frame_, cur_frame);
+      // Extract points for parallax check
+      auto [pts_ref_matched, pts_cur_matched] = extract_points_from_matches(all_matches);
+
+      cv::Mat img_matches = utils::draw_matched_points(
+        ref_frame_.image, cur_frame.image, pts_ref_matched, pts_cur_matched);
       cv::imshow("Matches", img_matches);
       cv::waitKey(1);
 
-      std::vector<cv::Point2f> pts_ref = ref_frame_.get_points_2d();
-      std::vector<cv::Point2f> pts_cur = cur_frame.get_points_2d();
-      if (!check_parallax(pts_ref, pts_cur)) {
+      if (!check_parallax(pts_ref_matched, pts_cur_matched)) {
         RCLCPP_WARN(logger_, "Parallax check failed");
         return std::nullopt;
       }
-
       RCLCPP_INFO(logger_, "Parallax check passed");
 
       // find essential matrix
-      std::vector<uchar> inlier_mask;
-      cv::Mat E = cv::findEssentialMat(pts_ref, pts_cur, K, cv::RANSAC, 0.99, 1.0, inlier_mask);
+      std::vector<uchar> inlier_mask_E;
+      cv::Mat E = cv::findEssentialMat(
+        pts_ref_matched, pts_cur_matched, K, cv::RANSAC, 0.99, 1.0, inlier_mask_E);
       RCLCPP_INFO(
         logger_, "Found Essential Matrix with inlier ratio %lf",
-        static_cast<double>(cv::countNonZero(inlier_mask)) / pts_ref.size());
+        static_cast<double>(cv::countNonZero(inlier_mask_E)) / pts_ref_matched.size());
 
       // decompose to get rotation and translation
       cv::Mat R_cw, t_cw;
-      cv::recoverPose(E, pts_ref, pts_cur, K, R_cw, t_cw, inlier_mask);
+      cv::recoverPose(E, pts_ref_matched, pts_cur_matched, K, R_cw, t_cw, inlier_mask_E);
 
-      uint32_t num_inliers = cv::countNonZero(inlier_mask);
+      uint32_t num_inliers = cv::countNonZero(inlier_mask_E);
 
       // print R,t and inliers
       RCLCPP_INFO(
         logger_, "Inlier ratio after pose recovery: %lf",
-        static_cast<double>(num_inliers) / pts_ref.size());
+        static_cast<double>(num_inliers) / pts_ref_matched.size());
 
       // filter points
-      ref_frame_.filter_observations_by_mask(inlier_mask);
-      cur_frame.filter_observations_by_mask(inlier_mask);
+      std::vector<MatchData> pose_inliers;
+      pose_inliers.reserve(cv::countNonZero(inlier_mask_E));
+      for (size_t i = 0; i < all_matches.size(); ++i) {
+        if (inlier_mask_E[i]) {
+          pose_inliers.push_back(all_matches[i]);
+        }
+      }
 
       // triangulate points
+      auto [pts_ref_inliers, pts_cur_inliers] = extract_points_from_matches(pose_inliers);
 
-      std::vector<uchar> inliers;
-      std::vector<cv::Point3f> pts3d = traingulate_points(
-        K, R_cw, t_cw, ref_frame_.get_points_2d(), cur_frame.get_points_2d(), inliers);
-
-      // filter chirality check passed points
-      ref_frame_.filter_observations_by_mask(inliers);  // only used for vis after this
-      cur_frame.filter_observations_by_mask(inliers);
+      std::vector<uchar> chirality_mask;
+      std::vector<cv::Point3f> pts3d =
+        traingulate_points(K, R_cw, t_cw, pts_ref_inliers, pts_cur_inliers, chirality_mask);
 
       // check min 4 points are valid for PnP later
       if (pts3d.size() < 4) {
@@ -276,16 +281,28 @@ public:
       // set frame pose
       cur_frame.pose_wc = cv::Affine3d(R_cw, t_cw).inv();
 
-      // filter based on new 3D landmarks
-      for (size_t i = 0; i < pts3d.size(); ++i) {
-        Landmark lm = Landmark{pts3d[i], cur_frame.observations[i].descriptor};
-        map_->add_landmark(lm);
-        cur_frame.observations[i].landmark_id = lm.id;
+      // Create landmarks and update landmark_id in the original frames using the final data.
+      int valid_pts3d_idx = 0;
+      for (size_t i = 0; i < pose_inliers.size(); ++i) {
+        if (chirality_mask[i]) {
+          // Get the correspondence data and the 3D point
+          const MatchData & data = pose_inliers[i];
+          const cv::Point3f & p3d = pts3d[valid_pts3d_idx++];
+
+          // Create the landmark using the descriptor from the current frame
+          Landmark lm = Landmark{p3d, cur_frame.observations[data.cur_idx].descriptor};
+          map_->add_landmark(lm);
+
+          // Update the landmark_id in BOTH frames using the original indices
+          cur_frame.observations[data.cur_idx].landmark_id = lm.id;
+          ref_frame_.observations[data.ref_idx].landmark_id = lm.id;
+        }
       }
 
       map_->add_keyframe(std::make_shared<KeyFrame>(cur_frame));
 
-      img_matches = utils::draw_matched_frames(ref_frame_, cur_frame);
+      img_matches = utils::draw_matched_points(
+        ref_frame_.image, cur_frame.image, pts_ref_inliers, pts_cur_inliers);
       cv::imshow("Matches", img_matches);
       cv::waitKey(1);
 
