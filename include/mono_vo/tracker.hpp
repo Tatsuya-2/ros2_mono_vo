@@ -34,19 +34,33 @@ public:
   Frame track_frame_with_optical_flow(const cv::Mat & new_image)
   {
     Frame new_frame{new_image};
-    std::vector<cv::Point2f> prev_pts_2d = prev_frame_.get_points_2d();
+    auto prev_pts_2d = prev_frame_.get_points_2d(true);
+    auto prev_observations = prev_frame_.get_observations(true);
     std::vector<cv::Point2f> new_pts_2d;
     std::vector<uchar> status;
     std::vector<float> err;
+    std::vector<cv::Point2f> prev_pts_2d_filtered;
+
     cv::calcOpticalFlowPyrLK(
       prev_frame_.image, new_frame.image, prev_pts_2d, new_pts_2d, status, err);
     for (size_t i = 0; i < prev_pts_2d.size(); ++i) {
       if (status[i] && err[i] < tracking_error_thresh_) {
+        prev_pts_2d_filtered.push_back(prev_pts_2d[i]);  // TODO: remove, for debug only
         new_frame.add_observation(
-          cv::KeyPoint(new_pts_2d[i], 1), prev_frame_.observations[i].descriptor,
-          prev_frame_.observations[i].landmark_id);
+          cv::KeyPoint(new_pts_2d[i], 1), prev_observations[i].descriptor,
+          prev_observations[i].landmark_id);
+        RCLCPP_INFO(logger_, "landmark id: %ld", new_frame.observations.back().landmark_id);
       }
     }
+
+    RCLCPP_INFO(logger_, "tracked %d points", new_frame.observations.size());
+
+    // TODO: remove, for debug only
+    cv::Mat img_matches = utils::draw_matched_points(
+      prev_frame_.image, new_frame.image, prev_pts_2d_filtered, new_frame.get_points_2d(true));
+    cv::imshow("Matches", img_matches);
+    cv::waitKey(0);
+
     new_frame.is_tracked = true;
     return new_frame;
   }
@@ -102,7 +116,7 @@ public:
     //        significant_motion(frame);
   }
 
-  void traingulate_new_points(const Frame & frame)
+  void traingulate_new_points(Frame & frame)
   {
     // detect new features from frame
 
@@ -167,12 +181,6 @@ public:
     // --- track points with optical flow ---
     Frame new_frame = track_frame_with_optical_flow(frame.image);
 
-    cv::Mat img_matches = utils::draw_matched_frames(prev_frame_, new_frame);
-    cv::imshow("Matches", img_matches);
-    cv::waitKey(1);
-
-    RCLCPP_INFO(logger_, "Tracked %zu points using optical flow", new_frame.observations.size());
-
     // check if enough points were tracked
     if (new_frame.observations.size() < min_tracked_points_) {
       RCLCPP_WARN(logger_, "Not enough keypoints were tracked");
@@ -196,20 +204,20 @@ public:
     RCLCPP_INFO(logger_, "Solved PnP with %d inliers", inliers.rows);
 
     // filter new pose inliers
-    new_frame.filter_observations_by_mask(inliers);
+    // new_frame.filter_observations_by_mask(inliers);
 
     // get camera pose in world frame
     cv::Mat R;
     cv::Rodrigues(rvec, R);
     new_frame.pose_wc = cv::Affine3d(R, tvec).inv();
 
-    tracking_count_from_keyframe_++;
-    if (should_add_keyframe(new_frame)) {
-      // check if has enough parallax
-      if (has_parallax(new_frame)) {
-        RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
-      }
-    }
+    // tracking_count_from_keyframe_++;
+    // if (should_add_keyframe(new_frame)) {
+    //   // check if has enough parallax
+    //   if (has_parallax(new_frame)) {
+    //     RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
+    //   }
+    // }
 
     std::stringstream ss;
     ss << "Camera pose transform wc: \n" << new_frame.pose_wc.matrix << std::endl;
@@ -233,8 +241,8 @@ private:
   size_t tracking_count_from_keyframe_ = 0;
   double max_rotation_from_keyframe_ = M_PI / 12.0;  // in radians (15 degrees)
   double max_translation_from_keyframe_ = 1.0;       // in meters
-  double ransac_reprojection_thresh_ = 3.0;
-  double model_score_thresh_ = 0.95;
+  double ransac_reprojection_thresh_ = 3.0;          // in pixels
+  double model_score_thresh_ = 0.95;                 // h/f score
   double f_inlier_thresh_ = 0.5;
 };
 }  // namespace mono_vo
