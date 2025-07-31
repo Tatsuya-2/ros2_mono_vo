@@ -1,6 +1,6 @@
 Panels:
   - Class: rviz_common/Displays
-    Help Height: 81
+    Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
@@ -11,7 +11,7 @@ Panels:
         - /Image1
         - /Image1/Topic1
       Splitter Ratio: 0.5
-    Tree Height: 598
+    Tree Height: 679
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -62,7 +62,7 @@ Visualization Manager:
       Name: Pose
       Shaft Length: 1
       Shaft Radius: 0.05000000074505806
-      Shape: Arrow
+      Shape: Axes
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -130,26 +130,21 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/Orbit
-      Distance: 38.767547607421875
+      Angle: 1.5649986267089844
+      Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Focal Point:
-        X: -14.006019592285156
-        Y: 0.9365934133529663
-        Z: 0.22922325134277344
-      Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.4997963905334473
+      Scale: 23.084745407104492
       Target Frame: <Fixed Frame>
-      Value: Orbit (rviz)
-      Yaw: 0.9353978633880615
+      Value: TopDownOrtho (rviz_default_plugins)
+      X: -6.645575046539307
+      Y: 0.2325999140739441
     Saved: ~
 Window Geometry:
   Displays:
