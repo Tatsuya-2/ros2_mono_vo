@@ -41,9 +41,14 @@ public:
     points_3d.reserve(observations.size());
     points_2d.reserve(observations.size());
     for (const auto & obs : observations) {
+      if (obs.landmark_id == -1) {
+        continue;
+      }
       points_2d.push_back(obs.keypoint.pt);
       points_3d.push_back(landmarks_.at(obs.landmark_id).pose_w);
     }
+    points_2d.shrink_to_fit();
+    points_3d.shrink_to_fit();
     return {points_2d, points_3d};
   }
 
