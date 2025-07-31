@@ -20,6 +20,14 @@ public:
   cv::Mat descriptor;
   long landmark_id;
 };
+
+enum class ObservationFilter
+{
+  ALL,
+  WITH_LANDMARKS,
+  WITHOUT_LANDMARKS
+};
+
 // Temporary frame to store data before it is added to the map
 struct Frame
 {
@@ -43,15 +51,27 @@ public:
     observations.emplace_back(keypoint, descriptor, landmark_id);
   }
 
-  std::vector<cv::Point2f> get_points_2d(bool with_valid_landmarks = false) const
+  std::vector<cv::Point2f> get_points_2d(
+    ObservationFilter filter_type = ObservationFilter::ALL) const
   {
     std::vector<cv::Point2f> points_2d;
     points_2d.reserve(observations.size());
     for (const auto & obs : observations) {
-      if (with_valid_landmarks && obs.landmark_id == -1) {
-        continue;
+      switch (filter_type) {
+        case ObservationFilter::WITHOUT_LANDMARKS:
+          if (obs.landmark_id == -1) points_2d.push_back(obs.keypoint.pt);
+          break;
+        case ObservationFilter::WITH_LANDMARKS:
+          if (obs.landmark_id != -1) points_2d.push_back(obs.keypoint.pt);
+          break;
+        case ObservationFilter::ALL:
+          points_2d.push_back(obs.keypoint.pt);
+          break;
+
+        default:
+          throw std::runtime_error("Invalid filter type in Frame::get_points_2d()");
+          break;
       }
-      points_2d.push_back(obs.keypoint.pt);
     }
     points_2d.shrink_to_fit();
     return points_2d;
@@ -103,20 +123,33 @@ public:
     observations = in_obs;
   }
 
-  std::vector<Observation> get_observations(bool with_valid_landmarks = false) const
+  std::vector<Observation> get_observations(
+    ObservationFilter filter_type = ObservationFilter::ALL) const
   {
-    if (!with_valid_landmarks) {
+    if (filter_type == ObservationFilter::ALL) {
       return observations;
     }
     std::vector<Observation> valid_obs;
     valid_obs.reserve(observations.size());
     for (const auto & obs : observations) {
-      if (obs.landmark_id != -1) {
-        valid_obs.push_back(obs);
+      switch (filter_type) {
+        case ObservationFilter::WITH_LANDMARKS:
+          if (obs.landmark_id != -1) valid_obs.push_back(obs);
+          break;
+
+        case ObservationFilter::WITHOUT_LANDMARKS:
+          if (obs.landmark_id == -1) valid_obs.push_back(obs);
+          break;
+
+        default:
+          throw std::runtime_error("Invalid filter type for Frame::get_observations()");
+          break;
       }
     }
     return valid_obs;
   }
+
+  void clear_observations() { observations.clear(); }
 
   long id;
   cv::Mat image;

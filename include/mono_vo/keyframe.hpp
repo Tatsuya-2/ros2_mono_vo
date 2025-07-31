@@ -47,13 +47,29 @@ public:
     }
   }
 
-  std::vector<cv::Point2f> get_points_2d() const
+  std::vector<cv::Point2f> get_points_2d(
+    ObservationFilter filter_type = ObservationFilter::ALL) const
   {
     std::vector<cv::Point2f> points_2d;
     points_2d.reserve(observations.size());
     for (const auto & obs : observations) {
-      points_2d.push_back(obs.keypoint.pt);
+      switch (filter_type) {
+        case ObservationFilter::WITHOUT_LANDMARKS:
+          if (obs.landmark_id == -1) points_2d.push_back(obs.keypoint.pt);
+          break;
+        case ObservationFilter::WITH_LANDMARKS:
+          if (obs.landmark_id != -1) points_2d.push_back(obs.keypoint.pt);
+          break;
+        case ObservationFilter::ALL:
+          points_2d.push_back(obs.keypoint.pt);
+          break;
+
+        default:
+          throw std::runtime_error("Invalid filter type in KeyFrame::get_points_2d()");
+          break;
+      }
     }
+    points_2d.shrink_to_fit();
     return points_2d;
   }
 
@@ -68,6 +84,11 @@ public:
     }
     points_2d.shrink_to_fit();
     return points_2d;
+  }
+
+  const Observation * get_observation_for_landmark(long landmark_id) const
+  {
+    return landmark_id_to_observation.at(landmark_id);
   }
 
   std::vector<cv::KeyPoint> get_keypoints() const
@@ -92,6 +113,34 @@ public:
     }
     return descriptors;
   }
+
+  std::vector<Observation> get_observations(
+    ObservationFilter filter_type = ObservationFilter::ALL) const
+  {
+    if (filter_type == ObservationFilter::ALL) {
+      return observations;
+    }
+    std::vector<Observation> valid_obs;
+    valid_obs.reserve(observations.size());
+    for (const auto & obs : observations) {
+      switch (filter_type) {
+        case ObservationFilter::WITH_LANDMARKS:
+          if (obs.landmark_id != -1) valid_obs.push_back(obs);
+          break;
+
+        case ObservationFilter::WITHOUT_LANDMARKS:
+          if (obs.landmark_id == -1) valid_obs.push_back(obs);
+          break;
+
+        default:
+          throw std::runtime_error("Invalid filter type for Frame::get_observations()");
+          break;
+      }
+    }
+    return valid_obs;
+  }
+
+  void clear_observations() { observations.clear(); }
 
   long id;
   cv::Affine3d
