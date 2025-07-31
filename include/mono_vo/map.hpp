@@ -59,9 +59,9 @@ public:
     last_keyframe_id_ = keyframe->id;
   }
 
-  const KeyFrame::Ptr & get_keyframe(long id) { return keyframes_.at(id); }
+  KeyFrame::Ptr & get_keyframe(long id) { return keyframes_.at(id); }
 
-  const KeyFrame::Ptr & get_last_keyframe() { return keyframes_.at(last_keyframe_id_); }
+  KeyFrame::Ptr & get_last_keyframe() { return keyframes_.at(last_keyframe_id_); }
 
   const std::map<long, Landmark> & get_all_landmarks() const { return landmarks_; }
 
