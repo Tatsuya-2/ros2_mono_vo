@@ -34,8 +34,8 @@ public:
   Frame track_frame_with_optical_flow(const cv::Mat & new_image)
   {
     Frame new_frame{new_image};
-    auto prev_pts_2d = prev_frame_.get_points_2d(true);
-    auto prev_observations = prev_frame_.get_observations(true);
+    auto prev_pts_2d = prev_frame_.get_points_2d(ObservationFilter::WITH_LANDMARKS);
+    auto prev_observations = prev_frame_.get_observations(ObservationFilter::WITH_LANDMARKS);
     std::vector<cv::Point2f> new_pts_2d;
     std::vector<uchar> status;
     std::vector<float> err;
@@ -49,15 +49,15 @@ public:
         new_frame.add_observation(
           cv::KeyPoint(new_pts_2d[i], 1), prev_observations[i].descriptor,
           prev_observations[i].landmark_id);
-        RCLCPP_INFO(logger_, "landmark id: %ld", new_frame.observations.back().landmark_id);
       }
     }
 
-    RCLCPP_INFO(logger_, "tracked %d points", new_frame.observations.size());
+    RCLCPP_INFO(logger_, "tracked %zu points", new_frame.observations.size());
 
     // TODO: remove, for debug only
     cv::Mat img_matches = utils::draw_matched_points(
-      prev_frame_.image, new_frame.image, prev_pts_2d_filtered, new_frame.get_points_2d(true));
+      prev_frame_.image, new_frame.image, prev_pts_2d_filtered,
+      new_frame.get_points_2d(ObservationFilter::ALL));
     cv::imshow("Matches", img_matches);
     cv::waitKey(1);
 
@@ -110,62 +110,139 @@ public:
     }
 
     return false;
-
-    // return frame.observations.size() < min_observations_before_triangulation_ ||
-    //        tracking_count_from_keyframe_++ > max_tracking_after_keyframe_ ||
-    //        significant_motion(frame);
   }
 
-  void traingulate_new_points(Frame & frame)
+  std::vector<cv::Point3f> triangulate_points(
+    const cv::Affine3d & pose_ref_cw, const cv::Affine3d & pose_cur_cw, const cv::Mat & K,
+    const std::vector<cv::Point2f> & pts_ref, const std::vector<cv::Point2f> & pts_cur,
+    std::vector<uchar> & inliers)
+  {
+    cv::Mat extrinsics_ref = cv::Mat(pose_ref_cw.matrix)(cv::Rect(0, 0, 4, 3));
+    cv::Mat extrinsics_cur = cv::Mat(pose_cur_cw.matrix)(cv::Rect(0, 0, 4, 3));
+    cv::Mat P_ref = K * extrinsics_ref;
+    cv::Mat P_cur = K * extrinsics_cur;
+
+    cv::Mat pts4d_h;  // 4xN homogeneous points
+    cv::triangulatePoints(P_ref, P_cur, pts_ref, pts_cur, pts4d_h);
+
+    std::vector<cv::Point3f> pts3d;
+    cv::convertPointsFromHomogeneous(pts4d_h.t(), pts3d);
+
+    // chirality check: point is in front of both reference and current camera frame
+    auto is_infront = [&pose_ref_cw, &pose_cur_cw](const cv::Point3f & p3d) {
+      // transform point to each camera frame
+      cv::Point3f p3d_ref = pose_ref_cw * p3d;
+      cv::Point3f p3d_cur = pose_cur_cw * p3d;
+
+      return p3d_ref.z > 0 && p3d_cur.z > 0;
+    };
+
+    inliers.clear();
+    inliers.reserve(pts3d.size());
+    std::vector<cv::Point3f> pts_3d_inliers;
+    for (const auto & p3d : pts3d) {
+      if (is_infront(p3d)) {
+        inliers.push_back(1);
+        pts_3d_inliers.push_back(p3d);
+      } else {
+        inliers.push_back(0);
+      }
+    }
+
+    RCLCPP_INFO(
+      logger_, "Triangulation complete. Kept %zu / %zu valid points.", pts_3d_inliers.size(),
+      pts3d.size());
+
+    return pts_3d_inliers;
+  }
+
+  void add_new_keyframe(Frame & frame, const cv::Mat & K)
   {
     // detect new features from frame
+    frame.clear_observations();
+    frame.extract_features(feature_extractor_);
 
-    // TODO store all keypoints in keyframes, regardless of matched.
     // find matches with the previous keyframe points that dont have landmarks.
+    auto prev_kframe = map_->get_last_keyframe();
+    std::vector<cv::DMatch> good_matches = feature_extractor_->find_matches(
+      prev_kframe->get_descriptors(), frame.get_descriptors(), lowes_distance_ratio_);
+
+    std::vector<MatchData> good_matches_data;
+    good_matches_data.reserve(good_matches.size());
+    for (const auto & match : good_matches) {
+      good_matches_data.emplace_back(
+        match.queryIdx, match.trainIdx, prev_kframe->observations[match.queryIdx].keypoint.pt,
+        frame.observations[match.trainIdx].keypoint.pt);
+    }
+
+    auto [pts_ref_matched, pts_cur_matched] = extract_points_from_matches(good_matches_data);
 
     // use recovered pose from PnP and previous keyframe pose to get projection matrices
+    cv::Affine3d pose_ref_cw = prev_kframe->pose_wc.inv();
+    cv::Affine3d pose_cur_cw = frame.pose_wc.inv();
+
+    std::vector<uchar> chirality_mask;
+    std::vector<cv::Point3f> pts_3d = triangulate_points(
+      pose_ref_cw, pose_cur_cw, K, pts_ref_matched, pts_cur_matched, chirality_mask);
 
     // triangulate new 3D points and add to map
+    size_t valix_pts3d_idx = 0;
+    for (size_t i = 0; i < chirality_mask.size(); ++i) {
+      if (chirality_mask[i]) {
+        const MatchData & data = good_matches_data[i];
+        const cv::Point3f & p3d = pts_3d[valix_pts3d_idx++];
 
-    // filter outlier 2D points from frame and set last_frame
+        // if kf prev has landmark, then set this same id for current frame
+        if (long lid = prev_kframe->observations[data.ref_idx].landmark_id; lid != -1) {
+          frame.observations[data.cur_idx].landmark_id = lid;
+        } else {  // add as new landmark and set in both frames
+          Landmark lm = Landmark(p3d, frame.observations[data.cur_idx].descriptor);
+          map_->add_landmark(lm);
+          frame.observations[data.cur_idx].landmark_id = lm.id;
+          prev_kframe->observations[data.ref_idx].landmark_id = lm.id;
+        }
+      }
+    }
 
     // set new keyframe with all detected keypoints
+    map_->add_keyframe(std::make_shared<KeyFrame>(frame));
 
     // reset the tracking count
+    tracking_count_from_keyframe_ = 0;
   }
 
-  bool has_parallax(const Frame & frame)
-  {
-    auto pts1 = map_->get_last_keyframe()->get_points_2d_for_landmarks(frame.get_landmark_ids());
-    auto pts2 = frame.get_points_2d();
-    // calculate homography
-    std::vector<uchar> inliers_h;
-    cv::findHomography(pts1, pts2, cv::RANSAC, ransac_reprojection_thresh_, inliers_h);
-    int score_h = cv::countNonZero(inliers_h);
+  // bool has_parallax(const Frame & frame)
+  // {
+  //   auto pts1 = map_->get_last_keyframe()->get_points_2d_for_landmarks(frame.get_landmark_ids());
+  //   auto pts2 = frame.get_points_2d();
+  //   // calculate homography
+  //   std::vector<uchar> inliers_h;
+  //   cv::findHomography(pts1, pts2, cv::RANSAC, ransac_reprojection_thresh_, inliers_h);
+  //   int score_h = cv::countNonZero(inliers_h);
 
-    // calculate fundamental
-    std::vector<uchar> inliers_f;
-    cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC, ransac_reprojection_thresh_, 0.99, inliers_f);
-    int score_f = cv::countNonZero(inliers_f);
+  //   // calculate fundamental
+  //   std::vector<uchar> inliers_f;
+  //   cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC, ransac_reprojection_thresh_, 0.99, inliers_f);
+  //   int score_f = cv::countNonZero(inliers_f);
 
-    RCLCPP_INFO(logger_, "score h: %d, score f: %d", score_h, score_f);
-    // check 1: min inliers
-    if (static_cast<double>(score_f) / pts1.size() < f_inlier_thresh_) {
-      return false;
-    }
+  //   RCLCPP_INFO(logger_, "score h: %d, score f: %d", score_h, score_f);
+  //   // check 1: min inliers
+  //   if (static_cast<double>(score_f) / pts1.size() < f_inlier_thresh_) {
+  //     return false;
+  //   }
 
-    auto model_score = static_cast<double>(score_h) / static_cast<double>(score_f);
-    RCLCPP_INFO(logger_, "score_h/score_f = %lf", model_score);
+  //   auto model_score = static_cast<double>(score_h) / static_cast<double>(score_f);
+  //   RCLCPP_INFO(logger_, "score_h/score_f = %lf", model_score);
 
-    // check 2: Is the Fundamental Matrix a significantly better model?
-    // The ratio score_H / score_F should be low.
-    // A high ratio means Homography explains the data almost as well as Fundamental Matrix.
-    if (model_score > model_score_thresh_) {
-      return false;
-    }
+  //   // check 2: Is the Fundamental Matrix a significantly better model?
+  //   // The ratio score_H / score_F should be low.
+  //   // A high ratio means Homography explains the data almost as well as Fundamental Matrix.
+  //   if (model_score > model_score_thresh_) {
+  //     return false;
+  //   }
 
-    return true;
-  }
+  //   return true;
+  // }
 
   TrackerState get_state() const { return state_; }
 
@@ -211,13 +288,14 @@ public:
     cv::Rodrigues(rvec, R);
     new_frame.pose_wc = cv::Affine3d(R, tvec).inv();
 
-    // tracking_count_from_keyframe_++;
-    // if (should_add_keyframe(new_frame)) {
-    //   // check if has enough parallax
-    //   if (has_parallax(new_frame)) {
-    //     RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
-    //   }
-    // }
+    tracking_count_from_keyframe_++;
+    if (should_add_keyframe(new_frame)) {
+      // check if has enough parallax
+      // if (has_parallax(new_frame)) {
+      //   RCLCPP_INFO(logger_, "Has enough parallax, adding keyframe");
+      // }
+      add_new_keyframe(new_frame, K);
+    }
 
     std::stringstream ss;
     ss << "Camera pose transform wc: \n" << new_frame.pose_wc.matrix << std::endl;
@@ -244,5 +322,6 @@ private:
   double ransac_reprojection_thresh_ = 3.0;          // in pixels
   double model_score_thresh_ = 0.95;                 // h/f score
   double f_inlier_thresh_ = 0.5;
+  double lowes_distance_ratio_ = 0.7;
 };
 }  // namespace mono_vo
