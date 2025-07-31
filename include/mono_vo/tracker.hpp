@@ -59,7 +59,7 @@ public:
     cv::Mat img_matches = utils::draw_matched_points(
       prev_frame_.image, new_frame.image, prev_pts_2d_filtered, new_frame.get_points_2d(true));
     cv::imshow("Matches", img_matches);
-    cv::waitKey(0);
+    cv::waitKey(1);
 
     new_frame.is_tracked = true;
     return new_frame;
