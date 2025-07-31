@@ -43,13 +43,17 @@ public:
     observations.emplace_back(keypoint, descriptor, landmark_id);
   }
 
-  std::vector<cv::Point2f> get_points_2d() const
+  std::vector<cv::Point2f> get_points_2d(bool with_valid_landmarks = false) const
   {
     std::vector<cv::Point2f> points_2d;
     points_2d.reserve(observations.size());
     for (const auto & obs : observations) {
+      if (with_valid_landmarks && obs.landmark_id == -1) {
+        continue;
+      }
       points_2d.push_back(obs.keypoint.pt);
     }
+    points_2d.shrink_to_fit();
     return points_2d;
   }
 
@@ -97,6 +101,21 @@ public:
     }
     in_obs.shrink_to_fit();
     observations = in_obs;
+  }
+
+  std::vector<Observation> get_observations(bool with_valid_landmarks = false) const
+  {
+    if (!with_valid_landmarks) {
+      return observations;
+    }
+    std::vector<Observation> valid_obs;
+    valid_obs.reserve(observations.size());
+    for (const auto & obs : observations) {
+      if (obs.landmark_id != -1) {
+        valid_obs.push_back(obs);
+      }
+    }
+    return valid_obs;
   }
 
   long id;
