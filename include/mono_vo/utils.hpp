@@ -4,7 +4,10 @@
 #include <tf2/LinearMath/Quaternion.h>
 
 #include <builtin_interfaces/msg/time.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <opencv2/opencv.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <sensor_msgs/msg/point_field.hpp>
 
 #include "mono_vo/frame.hpp"
 
@@ -191,41 +194,127 @@ cv::Mat draw_matched_points(
 }
 
 geometry_msgs::msg::PoseStamped affine3d_to_pose_stamped_msg(
-  const cv::Affine3d & affine_pose, const std::string & frame_id = "base_link",
-  const builtin_interfaces::msg::Time & timestamp = builtin_interfaces::msg::Time())
+  const cv::Affine3d & affine_pose, const std_msgs::msg::Header & header)
 {
   geometry_msgs::msg::PoseStamped pose_stamped;
 
   // Set header
-  pose_stamped.header.frame_id = frame_id;
-  pose_stamped.header.stamp = timestamp;
+  pose_stamped.header = header;
 
-  // Extract translation from affine transform
+  // Extract translation
   cv::Vec3d translation = affine_pose.translation();
+
+  // Extract rotation matrix
+  const cv::Matx33d & rot_cv = affine_pose.rotation();
+
+  // Step 1: Define OpenCV → ROS coordinate transform (90° around X-axis)
+  // This maps:
+  //   OpenCV: X=right, Y=down,  Z=forward
+  //   ROS:    X=forward, Y=left, Z=up
+  cv::Matx33d T_OC2ROS(1, 0, 0, 0, 0, -1, 0, 1, 0);
+
+  // Step 2: Apply rotation transform to convert from OpenCV to ROS frame
+  cv::Matx33d rot_ros = rot_cv * T_OC2ROS;  // Rotate the orientation
+
+  // Step 3: Convert translation if needed
+  // Note: The translation from solvePnP is in OpenCV camera frame,
+  // so we must also apply the same rotation to the position if it's relative.
+  // BUT: For absolute poses (e.g., world → camera), just reorient the rotation.
+  // If you're publishing camera position in world frame, keep translation as-is,
+  // but make sure it's in ROS world frame (X-forward, Z-up), not OpenCV view.
+
   pose_stamped.pose.position.x = translation[0];
   pose_stamped.pose.position.y = translation[1];
   pose_stamped.pose.position.z = translation[2];
 
-  // Extract rotation matrix from affine transform
-  const cv::Matx33d & rotation_matrix = affine_pose.rotation();
+  // Step 4: Convert rotation matrix to tf2 quaternion
+  tf2::Matrix3x3 tf_rot(
+    rot_ros(0, 0), rot_ros(0, 1), rot_ros(0, 2), rot_ros(1, 0), rot_ros(1, 1), rot_ros(1, 2),
+    rot_ros(2, 0), rot_ros(2, 1), rot_ros(2, 2));
 
-  // Convert rotation matrix to tf2::Matrix3x3
-  tf2::Matrix3x3 tf_rotation(
-    rotation_matrix(0, 0), rotation_matrix(0, 1), rotation_matrix(0, 2), rotation_matrix(1, 0),
-    rotation_matrix(1, 1), rotation_matrix(1, 2), rotation_matrix(2, 0), rotation_matrix(2, 1),
-    rotation_matrix(2, 2));
+  tf2::Quaternion tf_quat;
+  tf_rot.getRotation(tf_quat);
 
-  // Convert to quaternion
-  tf2::Quaternion quaternion;
-  tf_rotation.getRotation(quaternion);
-
-  // Set quaternion in pose message
-  pose_stamped.pose.orientation.x = quaternion.x();
-  pose_stamped.pose.orientation.y = quaternion.y();
-  pose_stamped.pose.orientation.z = quaternion.z();
-  pose_stamped.pose.orientation.w = quaternion.w();
+  pose_stamped.pose.orientation.x = tf_quat.x();
+  pose_stamped.pose.orientation.y = tf_quat.y();
+  pose_stamped.pose.orientation.z = tf_quat.z();
+  pose_stamped.pose.orientation.w = tf_quat.w();
 
   return pose_stamped;
 }
+
+/**
+ * @brief Converts a std::vector<cv::Point3f> to a sensor_msgs::msg::PointCloud2.
+ *
+ * @param points The input vector of 3D points (cv::Point3f).
+ * @param header The ROS header to use for the PointCloud2 message (contains frame_id and stamp).
+ * @return A sensor_msgs::msg::PointCloud2 message.
+ */
+sensor_msgs::msg::PointCloud2 points3d_to_pointcloud_msg(
+  const std::vector<cv::Point3f> & points, const std_msgs::msg::Header & header)
+{
+  sensor_msgs::msg::PointCloud2 cloud_msg;
+
+  // Set the header
+  cloud_msg.header = header;
+
+  // Set the cloud properties
+  cloud_msg.height = 1;  // Unordered point cloud
+  cloud_msg.width = points.size();
+  cloud_msg.is_dense = true;  // Assume no invalid points (NaNs, infs)
+
+  // Define the fields (x, y, z)
+  cloud_msg.fields.resize(3);
+
+  cloud_msg.fields[0].name = "x";
+  cloud_msg.fields[0].offset = 0;
+  cloud_msg.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud_msg.fields[0].count = 1;
+
+  cloud_msg.fields[1].name = "y";
+  cloud_msg.fields[1].offset = 4;  // sizeof(float)
+  cloud_msg.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud_msg.fields[1].count = 1;
+
+  cloud_msg.fields[2].name = "z";
+  cloud_msg.fields[2].offset = 8;  // 2 * sizeof(float)
+  cloud_msg.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  cloud_msg.fields[2].count = 1;
+
+  // Set the point step and row step
+  // point_step is the size of a single point in bytes
+  cloud_msg.point_step = 3 * sizeof(float);  // 3 fields (x, y, z) * 4 bytes/field
+  // row_step is the total size of a row in bytes
+  cloud_msg.row_step = cloud_msg.point_step * cloud_msg.width;
+
+  // Set the data
+  // The total size of the data buffer
+  size_t data_size = cloud_msg.row_step * cloud_msg.height;
+  cloud_msg.data.resize(data_size);
+
+  // This is the core of the conversion.
+  // We copy the raw memory from the vector of cv::Point3f to the data buffer
+  // of the PointCloud2 message. This is efficient because cv::Point3f is a
+  // Plain Old Data (POD) type with 3 consecutive floats, which matches the
+  // desired layout.
+  memcpy(cloud_msg.data.data(), points.data(), data_size);
+
+  // Check for non-finite points (NaN or Inf) and update is_dense flag
+  for (const auto & point : points) {
+    if (!std::isfinite(point.x) || !std::isfinite(point.y) || !std::isfinite(point.z)) {
+      cloud_msg.is_dense = false;
+      break;
+    }
+  }
+
+  // This field is not super important, but we can set it correctly.
+  // It's true if the machine is big-endian, false for little-endian.
+  // Most modern systems (x86, ARM) are little-endian.
+  const int i = 1;
+  cloud_msg.is_bigendian = (*(char *)&i == 0);
+
+  return cloud_msg;
+}
+
 }  // namespace utils
 }  // namespace mono_vo
