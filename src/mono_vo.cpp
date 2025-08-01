@@ -31,6 +31,9 @@ void MonoVO::setup()
   pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/camera/pose", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", pose_pub_->get_topic_name());
 
+  pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/camera/pointcloud", 10);
+  RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", pointcloud_pub_->get_topic_name());
+
   RCLCPP_INFO(this->get_logger(), "Node initialized");
 }
 
@@ -64,11 +67,19 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
   std::optional<cv::Affine3d> pose = tracker_.update(frame, K_.value(), d_.value());
 
+  std_msgs::msg::Header header;
+  header.stamp = msg->header.stamp;
+  header.frame_id = "odom";
   if (pose.has_value()) {
     geometry_msgs::msg::PoseStamped pose_msg =
-      utils::affine3d_to_pose_stamped_msg(pose.value(), "base_link", msg->header.stamp);
+      utils::affine3d_to_pose_stamped_msg(pose.value(), header);
     pose_pub_->publish(pose_msg);
   }
+
+  // publish pointcloud from map
+  std::vector<cv::Point3f> points = map_->get_landmark_points();
+  sensor_msgs::msg::PointCloud2 pointcloud_msg = utils::points3d_to_pointcloud_msg(points, header);
+  pointcloud_pub_->publish(pointcloud_msg);
 }
 
 void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg)
