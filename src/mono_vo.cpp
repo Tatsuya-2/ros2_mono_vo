@@ -34,6 +34,9 @@ void MonoVO::setup()
   pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/camera/pointcloud", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", pointcloud_pub_->get_topic_name());
 
+  path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/camera/path", 10);
+  RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", path_pub_->get_topic_name());
+
   RCLCPP_INFO(this->get_logger(), "Node initialized");
 }
 
@@ -74,6 +77,10 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     geometry_msgs::msg::PoseStamped pose_msg =
       utils::affine3d_to_pose_stamped_msg(pose.value(), header);
     pose_pub_->publish(pose_msg);
+
+    path_msg_.header = header;
+    path_msg_.poses.push_back(pose_msg);
+    path_pub_->publish(path_msg_);
   }
 
   // publish pointcloud from map
