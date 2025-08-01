@@ -201,9 +201,13 @@ geometry_msgs::msg::PoseStamped affine3d_to_pose_stamped_msg(
   // Set header
   pose_stamped.header = header;
 
-  // Extract translation
+  // Extract translation from affine transform
   cv::Vec3d translation = affine_pose.translation();
+  pose_stamped.pose.position.x = translation[0];
+  pose_stamped.pose.position.y = translation[1];
+  pose_stamped.pose.position.z = translation[2];
 
+  // Extract rotation matrix from affine transform
   // Extract rotation matrix
   const cv::Matx33d & rot_cv = affine_pose.rotation();
 
@@ -211,34 +215,24 @@ geometry_msgs::msg::PoseStamped affine3d_to_pose_stamped_msg(
   // This maps:
   //   OpenCV: X=right, Y=down,  Z=forward
   //   ROS:    X=forward, Y=left, Z=up
-  cv::Matx33d T_OC2ROS(1, 0, 0, 0, 0, -1, 0, 1, 0);
+  cv::Matx33d T_OC2ROS(0, -1, 0, 0, 0, -1, 1, 0, 0);
 
   // Step 2: Apply rotation transform to convert from OpenCV to ROS frame
   cv::Matx33d rot_ros = rot_cv * T_OC2ROS;  // Rotate the orientation
 
-  // Step 3: Convert translation if needed
-  // Note: The translation from solvePnP is in OpenCV camera frame,
-  // so we must also apply the same rotation to the position if it's relative.
-  // BUT: For absolute poses (e.g., world → camera), just reorient the rotation.
-  // If you're publishing camera position in world frame, keep translation as-is,
-  // but make sure it's in ROS world frame (X-forward, Z-up), not OpenCV view.
-
-  pose_stamped.pose.position.x = translation[0];
-  pose_stamped.pose.position.y = translation[1];
-  pose_stamped.pose.position.z = translation[2];
-
-  // Step 4: Convert rotation matrix to tf2 quaternion
-  tf2::Matrix3x3 tf_rot(
+  tf2::Matrix3x3 tf_rotation(
     rot_ros(0, 0), rot_ros(0, 1), rot_ros(0, 2), rot_ros(1, 0), rot_ros(1, 1), rot_ros(1, 2),
     rot_ros(2, 0), rot_ros(2, 1), rot_ros(2, 2));
 
-  tf2::Quaternion tf_quat;
-  tf_rot.getRotation(tf_quat);
+  // Convert to quaternion
+  tf2::Quaternion quaternion;
+  tf_rotation.getRotation(quaternion);
 
-  pose_stamped.pose.orientation.x = tf_quat.x();
-  pose_stamped.pose.orientation.y = tf_quat.y();
-  pose_stamped.pose.orientation.z = tf_quat.z();
-  pose_stamped.pose.orientation.w = tf_quat.w();
+  // Set quaternion in pose message
+  pose_stamped.pose.orientation.x = quaternion.x();
+  pose_stamped.pose.orientation.y = quaternion.y();
+  pose_stamped.pose.orientation.z = quaternion.z();
+  pose_stamped.pose.orientation.w = quaternion.w();
 
   return pose_stamped;
 }
