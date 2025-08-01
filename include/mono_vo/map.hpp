@@ -71,6 +71,16 @@ public:
 
   size_t num_keyframes() const { return keyframes_.size(); }
 
+  std::vector<cv::Point3f> get_landmark_points() const
+  {
+    std::vector<cv::Point3f> points;
+    points.reserve(landmarks_.size());
+    for (const auto & landmark : landmarks_) {
+      points.push_back(landmark.second.pose_w);
+    }
+    return points;
+  }
+
 private:
   std::map<long, Landmark> landmarks_;
   std::map<long, KeyFrame::Ptr> keyframes_;
