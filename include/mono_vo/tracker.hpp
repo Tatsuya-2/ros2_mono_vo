@@ -273,20 +273,17 @@ public:
     RCLCPP_INFO(logger_, "Got %zu 3D point correspondences from tracking", new_3dps.size());
 
     // Transform that brings point in world to camera frame
-    cv::Mat rvec;     // rotation vector in 3x1 format (Rodrigues format)
-    cv::Mat tvec;     // translation vector in 3x1 format
+    cv::Mat rvec_cw;  // rotation vector in 3x1 format (Rodrigues format)
+    cv::Mat tvec_cw;  // translation vector in 3x1 format
     cv::Mat inliers;  // indices of inliers
-    cv::solvePnPRansac(new_3dps, new_2dps, K, d, rvec, tvec, false, 100, 8.0, 0.99, inliers);
+    cv::solvePnPRansac(new_3dps, new_2dps, K, d, rvec_cw, tvec_cw, false, 100, 8.0, 0.99, inliers);
 
     RCLCPP_INFO(logger_, "Solved PnP with %d inliers", inliers.rows);
 
-    // filter new pose inliers
-    // new_frame.filter_observations_by_mask(inliers);
-
     // get camera pose in world frame
-    cv::Mat R;
-    cv::Rodrigues(rvec, R);
-    new_frame.pose_wc = cv::Affine3d(R, tvec).inv();
+    cv::Mat R_cw;
+    cv::Rodrigues(rvec_cw, R_cw);
+    new_frame.pose_wc = cv::Affine3d(R_cw, tvec_cw).inv();
 
     tracking_count_from_keyframe_++;
     if (should_add_keyframe(new_frame)) {
