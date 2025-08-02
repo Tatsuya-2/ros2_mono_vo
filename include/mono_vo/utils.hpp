@@ -310,5 +310,19 @@ sensor_msgs::msg::PointCloud2 points3d_to_pointcloud_msg(
   return cloud_msg;
 }
 
+double compute_reprojection_error(
+  const cv::Point3f & p3d_world, const cv::Point2f & p2d_observed,
+  const cv::Mat & P)  // Projection matrix K*[R|t]
+{
+  // Project the 3D point
+  cv::Mat p4d_world = (cv::Mat_<double>(4, 1) << p3d_world.x, p3d_world.y, p3d_world.z, 1.0);
+  cv::Mat p3d_projected_h = P * p4d_world;
+  cv::Point2f p2d_projected;
+  p2d_projected.x = p3d_projected_h.at<double>(0) / p3d_projected_h.at<double>(2);
+  p2d_projected.y = p3d_projected_h.at<double>(1) / p3d_projected_h.at<double>(2);
+
+  return cv::norm(p2d_projected - p2d_observed);
+}
+
 }  // namespace utils
 }  // namespace mono_vo
