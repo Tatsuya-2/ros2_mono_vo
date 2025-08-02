@@ -72,7 +72,7 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
   std_msgs::msg::Header header;
   header.stamp = msg->header.stamp;
-  header.frame_id = "odom";
+  header.frame_id = "map";
   if (pose.has_value()) {
     geometry_msgs::msg::PoseStamped pose_msg =
       utils::affine3d_to_pose_stamped_msg(pose.value(), header);
