@@ -19,18 +19,16 @@ set(TARGET_NAME mono_vo_component)
 
 add_library(${TARGET_NAME} SHARED src/mono_vo.cpp)
 
-rclcpp_components_register_node(${TARGET_NAME}
-  PLUGIN "mono_vo::MonoVO"
-  EXECUTABLE mono_vo
+target_precompile_headers(${TARGET_NAME} PRIVATE
+  <rclcpp/rclcpp.hpp>
+  <sensor_msgs/msg/image.hpp>
+  <sensor_msgs/msg/camera_info.hpp>
+  <sensor_msgs/msg/point_cloud2.hpp>
+  <nav_msgs/msg/path.hpp>
+  <geometry_msgs/msg/pose_stamped.hpp>
+  <opencv2/opencv.hpp>
 )
 
-target_include_directories(${TARGET_NAME} PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-target_include_directories(${TARGET_NAME} SYSTEM PUBLIC
-  ${OpenCV_INCLUDE_DIRS}
-)
 target_compile_features(${TARGET_NAME} PUBLIC c_std_99 cxx_std_17)
 
 ament_target_dependencies(${TARGET_NAME}
@@ -43,8 +41,21 @@ ament_target_dependencies(${TARGET_NAME}
   cv_bridge
 )
 
+target_include_directories(${TARGET_NAME} 
+  PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+  SYSTEM PUBLIC
+    ${OpenCV_INCLUDE_DIRS}
+)
+
 target_link_libraries(${TARGET_NAME}
  ${OpenCV_LIBS}
+)
+
+rclcpp_components_register_node(${TARGET_NAME}
+  PLUGIN "mono_vo::MonoVO"
+  EXECUTABLE mono_vo  
 )
 
 install(TARGETS ${TARGET_NAME}
