@@ -9,7 +9,12 @@ namespace mono_vo
 {
 
 MonoVO::MonoVO(const rclcpp::NodeOptions & options)
-: Node("mono_vo", options), map_(std::make_shared<Map>()), initializer_(map_), tracker_(map_)
+: Node("mono_vo", options),
+  map_(std::make_shared<Map>(this->get_logger().get_child("map"))),
+  feature_extractor_(
+    std::make_shared<FeatureExtractor>(1000, this->get_logger().get_child("feature_extractor"))),
+  initializer_(map_, feature_extractor_, this->get_logger().get_child("initializer")),
+  tracker_(map_, feature_extractor_, this->get_logger().get_child("tracker"))
 {
   this->setup();
 }
@@ -37,7 +42,7 @@ void MonoVO::setup()
   path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/camera/path", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", path_pub_->get_topic_name());
 
-  RCLCPP_INFO(this->get_logger(), "Node initialized");
+  RCLCPP_INFO(this->get_logger(), "mono_vo node initialized");
 }
 
 void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
