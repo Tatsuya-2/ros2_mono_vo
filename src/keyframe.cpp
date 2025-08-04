@@ -75,16 +75,6 @@ std::optional<Observation> KeyFrame::get_observation_for_landmark(long landmark_
   return std::nullopt;
 }
 
-std::vector<cv::KeyPoint> KeyFrame::get_keypoints() const
-{
-  std::vector<cv::KeyPoint> keypoints;
-  keypoints.reserve(observations.size());
-  for (const auto & obs : observations) {
-    keypoints.push_back(obs.keypoint);
-  }
-  return keypoints;
-}
-
 cv::Mat KeyFrame::get_descriptors() const
 {
   cv::Mat descriptors;

@@ -141,7 +141,7 @@ void Tracker::add_new_keyframe(Frame & frame, const cv::Mat & K)
 {
   // detect new features from frame
   frame.clear_observations();
-  frame.extract_features(feature_extractor_);
+  frame.extract_observations(feature_extractor_);
 
   // find matches with the previous keyframe points that dont have landmarks.
   auto prev_kframe = map_->get_last_keyframe();

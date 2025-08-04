@@ -137,7 +137,7 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
   }
 
   Frame cur_frame{frame};
-  cur_frame.extract_features(feature_extractor_);
+  cur_frame.extract_observations(feature_extractor_);
 
   if (state_ == State::OBTAINING_REF) {
     if (!good_keypoint_distribution(cur_frame)) return std::nullopt;

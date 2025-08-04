@@ -34,7 +34,7 @@ public:
   using Ptr = std::shared_ptr<Frame>;
   explicit Frame(const cv::Mat & image);
 
-  void extract_features(const FeatureExtractor::Ptr extractor);
+  void extract_observations(const FeatureExtractor::Ptr extractor);
 
   void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id);
 
@@ -46,8 +46,6 @@ public:
   std::vector<cv::KeyPoint> get_keypoints() const;
 
   cv::Mat get_descriptors() const;
-
-  void filter_observations_by_mask(const std::vector<uchar> & inlier_mask);
 
   std::vector<Observation> get_observations(
     ObservationFilter filter_type = ObservationFilter::ALL) const;
