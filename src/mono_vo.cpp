@@ -77,6 +77,8 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
   if (tracker_.get_state() == TrackerState::LOST) {
     RCLCPP_INFO(this->get_logger(), "Tracker Lost");
+    // TODO (Myron): Add resetting logic
+    return;
   }
 
   std_msgs::msg::Header header;
