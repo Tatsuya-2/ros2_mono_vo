@@ -12,20 +12,6 @@ namespace mono_vo
 {
 namespace utils
 {
-/**
- * @brief Draws two frames side by side with matched keypoints.
- *
- * @param frame1 First frame.
- * @param frame2 Second frame.
- * @param draw_keypoints Whether to draw circles around keypoints. Default is true.
- * @param point_radius Radius of circles around keypoints. Default is 4.
- * @param line_thickness Thickness of lines connecting matched keypoints. Default is 1.
- *
- * @return A combined image with the two frames side by side.
- */
-cv::Mat draw_matched_frames(
-  const Frame & frame1, const Frame & frame2, bool draw_keypoints = true, int point_radius = 4,
-  int line_thickness = 1);
 
 /**
  * @brief Draws matched points between two images.
@@ -61,9 +47,20 @@ geometry_msgs::msg::PoseStamped affine3d_to_pose_stamped_msg(
 sensor_msgs::msg::PointCloud2 points3d_to_pointcloud_msg(
   const std::vector<cv::Point3f> & points, const std_msgs::msg::Header & header);
 
+/**
+ * @brief Computes the reprojection error between a 3D world point and its projection in an image.
+ *
+ * This function projects a 3D world point onto an image using the provided projection matrix P and
+ * computes the Euclidean distance between the projected 2D point and the observed 2D point.
+ *
+ * @param p3d_world The 3D point in the world coordinate system.
+ * @param p2d_observed The observed 2D point in the image.
+ * @param P The 3x4 projection matrix.
+ *
+ * @return The reprojection error between the projected and observed 2D points.
+ */
 double compute_reprojection_error(
-  const cv::Point3f & p3d_world, const cv::Point2f & p2d_observed,
-  const cv::Mat & P);  // Projection matrix K*[R|t]
+  const cv::Point3f & p3d_world, const cv::Point2f & p2d_observed, const cv::Mat & P);
 
 }  // namespace utils
 }  // namespace mono_vo
