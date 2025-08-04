@@ -75,6 +75,10 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
   std::optional<cv::Affine3d> pose = tracker_.update(frame, K_.value(), d_.value());
 
+  if (tracker_.get_state() == TrackerState::LOST) {
+    RCLCPP_INFO(this->get_logger(), "Tracker Lost");
+  }
+
   std_msgs::msg::Header header;
   header.stamp = msg->header.stamp;
   header.frame_id = "map";

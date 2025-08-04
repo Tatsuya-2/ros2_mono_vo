@@ -19,7 +19,8 @@ namespace mono_vo
 enum class TrackerState
 {
   INITIALIZING,
-  TRACKING
+  TRACKING,
+  LOST
 };
 
 class Tracker
@@ -101,6 +102,8 @@ public:
   bool has_parallax(const Frame & frame);
 
   TrackerState get_state() const;
+
+  void reset();
 
   /**
    * Updates the tracker with a new frame.

@@ -227,9 +227,15 @@ bool Tracker::has_parallax(const Frame & frame)
 
 TrackerState Tracker::get_state() const { return state_; }
 
+void Tracker::reset() { state_ = TrackerState::INITIALIZING; }
+
 std::optional<cv::Affine3d> Tracker::update(
   const Frame & frame, const cv::Mat & K, const cv::Mat & d)
 {
+  if (state_ == TrackerState::LOST) {
+    return std::nullopt;
+  }
+
   // set first frame
   if (state_ == TrackerState::INITIALIZING) {
     prev_frame_ = frame;
@@ -243,7 +249,7 @@ std::optional<cv::Affine3d> Tracker::update(
   // check if enough points were tracked
   if (new_frame.observations.size() < min_tracked_points_) {
     RCLCPP_WARN(logger_, "Not enough keypoints were tracked");
-    // TODO: handle logic here
+    state_ = TrackerState::LOST;
     return std::nullopt;
   }
 
