@@ -33,8 +33,6 @@ public:
 
   std::optional<Observation> get_observation_for_landmark(long landmark_id) const;
 
-  std::vector<cv::KeyPoint> get_keypoints() const;
-
   cv::Mat get_descriptors() const;
 
   std::vector<Observation> get_observations(

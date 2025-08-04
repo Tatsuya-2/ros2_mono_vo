@@ -42,8 +42,6 @@ public:
 
   std::vector<long> get_landmark_ids() const;
 
-  std::vector<cv::KeyPoint> get_keypoints() const;
-
   cv::Mat get_descriptors() const;
 
   std::vector<Observation> get_observations(
