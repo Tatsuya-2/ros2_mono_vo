@@ -11,7 +11,7 @@
 namespace mono_vo
 {
 
-class KeyFrame
+struct KeyFrame
 {
 public:
   using Ptr = std::shared_ptr<KeyFrame>;

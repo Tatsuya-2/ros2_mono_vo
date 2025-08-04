@@ -4,7 +4,7 @@
 
 namespace mono_vo
 {
-class Landmark
+struct Landmark
 {
 public:
   explicit Landmark(const cv::Point3f & pose_w, const cv::Mat & descriptor);

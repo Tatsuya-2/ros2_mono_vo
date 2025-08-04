@@ -7,9 +7,8 @@
 
 namespace mono_vo
 {
-class Observation
+struct Observation
 {
-public:
   explicit Observation(
     const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id = -1)
   : keypoint(keypoint), descriptor(descriptor), landmark_id(landmark_id)
