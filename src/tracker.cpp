@@ -47,7 +47,7 @@ Frame Tracker::track_frame_with_optical_flow(const cv::Mat & new_image)
   return new_frame;
 }
 
-bool Tracker::significant_motion(const Frame & frame)
+bool Tracker::has_significant_motion(const Frame & frame)
 {
   // get relative pose
   KeyFrame::Ptr prev_kframe = map_->get_last_keyframe();
@@ -85,7 +85,7 @@ bool Tracker::should_add_keyframe(const Frame & frame)
     return true;
   }
 
-  if (significant_motion(frame)) {
+  if (has_significant_motion(frame)) {
     RCLCPP_WARN(logger_, "Significant motion");
     return true;
   }
