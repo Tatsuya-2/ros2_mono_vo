@@ -47,8 +47,6 @@ std::vector<cv::Point2f> KeyFrame::get_points_2d(ObservationFilter filter_type) 
       filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1 ||
       filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1) {
       points_2d.push_back(obs.keypoint.pt);
-    } else {
-      throw std::runtime_error("Invalid filter type in KeyFrame::get_points_2d()");
     }
   }
   points_2d.shrink_to_fit();
@@ -117,8 +115,6 @@ std::vector<Observation> KeyFrame::get_observations(ObservationFilter filter_typ
       filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1 ||
       filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1) {
       valid_obs.push_back(obs);
-    } else {
-      throw std::runtime_error("Invalid filter type for Frame::get_observations()");
     }
   }
   return valid_obs;
