@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <opencv2/opencv.hpp>
+#include <optional>
 #include <vector>
 
 #include "mono_vo/frame.hpp"
@@ -30,7 +31,7 @@ public:
   std::vector<cv::Point2f> get_points_2d_for_landmarks(
     const std::vector<long> & landmark_ids) const;
 
-  const Observation * get_observation_for_landmark(long landmark_id) const;
+  std::optional<Observation> get_observation_for_landmark(long landmark_id) const;
 
   std::vector<cv::KeyPoint> get_keypoints() const;
 
@@ -48,7 +49,7 @@ public:
 
 private:
   static long next_id_;
-  std::unordered_map<long, Observation *> landmark_id_to_observation;
+  std::unordered_map<long, size_t> landmark_id_to_index_;
 };
 
 }  // namespace mono_vo

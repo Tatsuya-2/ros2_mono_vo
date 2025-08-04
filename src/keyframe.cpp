@@ -20,10 +20,10 @@ KeyFrame::KeyFrame(const Frame & frame)
   id = next_id_++;
   pose_wc = frame.pose_wc;
   observations = frame.observations;
-  landmark_id_to_observation.reserve(observations.size());
-  for (auto & obs : observations) {
-    if (obs.landmark_id != -1) {
-      landmark_id_to_observation[obs.landmark_id] = &obs;
+  landmark_id_to_index_.reserve(observations.size());
+  for (size_t i = 0; i < observations.size(); ++i) {
+    if (observations[i].landmark_id != -1) {
+      landmark_id_to_index_[observations[i].landmark_id] = i;
     }
   }
 }
@@ -33,7 +33,7 @@ void KeyFrame::add_observation(
 {
   observations.emplace_back(keypoint, descriptor, landmark_id);
   if (landmark_id != -1) {
-    landmark_id_to_observation[landmark_id] = &observations.back();
+    landmark_id_to_index_[landmark_id] = observations.size() - 1;
   }
 }
 
@@ -68,17 +68,22 @@ std::vector<cv::Point2f> KeyFrame::get_points_2d_for_landmarks(
   std::vector<cv::Point2f> points_2d;
   points_2d.reserve(landmark_ids.size());
   for (const auto landmark_id : landmark_ids) {
-    if (auto obs = landmark_id_to_observation.at(landmark_id); obs != nullptr) {
-      points_2d.push_back(obs->keypoint.pt);
+    if (auto it = landmark_id_to_index_.find(landmark_id); it != landmark_id_to_index_.end()) {
+      const size_t index = it->second;
+      points_2d.push_back(observations[index].keypoint.pt);
     }
   }
   points_2d.shrink_to_fit();
   return points_2d;
 }
 
-const Observation * KeyFrame::get_observation_for_landmark(long landmark_id) const
+std::optional<Observation> KeyFrame::get_observation_for_landmark(long landmark_id) const
 {
-  return landmark_id_to_observation.at(landmark_id);
+  auto it = landmark_id_to_index_.find(landmark_id);
+  if (it != landmark_id_to_index_.end()) {
+    return observations[it->second];
+  }
+  return std::nullopt;
 }
 
 std::vector<cv::KeyPoint> KeyFrame::get_keypoints() const
@@ -93,13 +98,16 @@ std::vector<cv::KeyPoint> KeyFrame::get_keypoints() const
 
 cv::Mat KeyFrame::get_descriptors() const
 {
-  std::vector<cv::Mat> descriptor_rows;
-  for (const auto & obs : observations) {
-    descriptor_rows.push_back(obs.descriptor);
-  }
   cv::Mat descriptors;
-  if (!descriptor_rows.empty()) {
-    cv::vconcat(descriptor_rows, descriptors);
+  if (observations.empty()) {
+    return descriptors;
+  }
+
+  const auto & d = observations[0].descriptor;
+  descriptors.create(observations.size(), d.cols, d.type());
+
+  for (size_t i = 0; i < observations.size(); ++i) {
+    observations[i].descriptor.copyTo(descriptors.row(i));
   }
   return descriptors;
 }
@@ -129,6 +137,10 @@ std::vector<Observation> KeyFrame::get_observations(ObservationFilter filter_typ
   return valid_obs;
 }
 
-void KeyFrame::clear_observations() { observations.clear(); }
+void KeyFrame::clear_observations()
+{
+  observations.clear();
+  landmark_id_to_index_.clear();
+}
 
 }  // namespace mono_vo
