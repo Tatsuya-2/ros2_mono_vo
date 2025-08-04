@@ -30,7 +30,7 @@ public:
    * @return A pair of vectors: the first containing 2D points, and the second containing corresponding 3D points.
    */
   std::pair<std::vector<cv::Point2f>, std::vector<cv::Point3f>>
-  get_observation_landmark_point_correspondences(const std::vector<Observation> & observations);
+  get_observation_to_landmark_point_correspondences(const std::vector<Observation> & observations);
 
   void add_keyframe(const std::shared_ptr<KeyFrame> & keyframe);
 

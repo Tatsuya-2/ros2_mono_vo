@@ -13,7 +13,8 @@ void Map::add_landmark(const Landmark & landmark)
 const Landmark & Map::get_landmark(long id) { return landmarks_.at(id); }
 
 std::pair<std::vector<cv::Point2f>, std::vector<cv::Point3f>>
-Map::get_observation_landmark_point_correspondences(const std::vector<Observation> & observations)
+Map::get_observation_to_landmark_point_correspondences(
+  const std::vector<Observation> & observations)
 {
   std::vector<cv::Point2f> points_2d;
   std::vector<cv::Point3f> points_3d;

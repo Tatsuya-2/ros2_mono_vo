@@ -250,7 +250,7 @@ std::optional<cv::Affine3d> Tracker::update(
   // --- solve PnP ---
   // get new frame tracked 2D and corresponding 3D points
   auto [new_2dps, new_3dps] =
-    map_->get_observation_landmark_point_correspondences(new_frame.observations);
+    map_->get_observation_to_landmark_point_correspondences(new_frame.observations);
 
   RCLCPP_INFO(logger_, "Got %zu 3D point correspondences from tracking", new_3dps.size());
 
