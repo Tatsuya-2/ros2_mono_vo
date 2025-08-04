@@ -104,7 +104,7 @@ void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstShare
 {
   RCLCPP_DEBUG(
     this->get_logger(), "Camera info message received at ts: '%d'", msg->header.stamp.sec);
-  if (K_.has_value()) return;
+  if (K_.has_value() && d_.has_value()) return;
 
   K_ = cv::Mat(3, 3, CV_64F, const_cast<double *>(msg->k.data())).clone();
   d_ = cv::Mat(1, 5, CV_64F, const_cast<double *>(msg->d.data())).clone();
