@@ -43,7 +43,6 @@ std::vector<cv::Point2f> Frame::get_points_2d(ObservationFilter filter_type) con
         break;
     }
   }
-  points_2d.shrink_to_fit();
   return points_2d;
 }
 
@@ -89,7 +88,6 @@ void Frame::filter_observations_by_mask(const std::vector<uchar> & inlier_mask)
       in_obs.push_back(observations[i]);
     }
   }
-  in_obs.shrink_to_fit();
   observations = in_obs;
 }
 

@@ -49,7 +49,6 @@ std::vector<cv::Point2f> KeyFrame::get_points_2d(ObservationFilter filter_type) 
       points_2d.push_back(obs.keypoint.pt);
     }
   }
-  points_2d.shrink_to_fit();
   return points_2d;
 }
 
@@ -64,7 +63,6 @@ std::vector<cv::Point2f> KeyFrame::get_points_2d_for_landmarks(
       points_2d.push_back(observations[index].keypoint.pt);
     }
   }
-  points_2d.shrink_to_fit();
   return points_2d;
 }
 
