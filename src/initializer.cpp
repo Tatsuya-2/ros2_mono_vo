@@ -9,7 +9,6 @@ Initializer::Initializer(
   logger_(logger),
   state_(State::OBTAINING_REF),
   ref_frame_(cv::Mat()),
-  distribution_thresh_(0.5f),
   feature_processor_(feature_processor)
 {
 }
@@ -23,10 +22,11 @@ bool Initializer::good_keypoint_distribution(const Frame & frame)
   RCLCPP_INFO(logger_, "totals kps: %ld", frame.observations.size());
 
   // check distribution in a grid across the image
-  cv::Mat grid = cv::Mat::zeros(frame.image.rows / 50, frame.image.cols / 50, CV_8U);
+  cv::Mat grid = cv::Mat::zeros(
+    frame.image.rows / occupancy_grid_div_, frame.image.cols / occupancy_grid_div_, CV_8U);
   int occupied_cells = 0;
   for (auto & obs : frame.observations) {
-    int r = obs.keypoint.pt.y / 50, c = obs.keypoint.pt.x / 50;
+    int r = obs.keypoint.pt.y / occupancy_grid_div_, c = obs.keypoint.pt.x / occupancy_grid_div_;
     if (!grid.at<uchar>(r, c)) {
       grid.at<uchar>(r, c) = 1;
       occupied_cells++;
@@ -155,7 +155,7 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
     std::vector<cv::DMatch> good_matches =
       feature_processor_->find_matches(ref_descriptors, cur_descriptors, lowes_distance_ratio_);
 
-    if (good_matches.size() < min_matches_for_parallax_) {
+    if (good_matches.size() < min_matches_for_init_) {
       RCLCPP_WARN(logger_, "Initializer: Not enough matches");
       // check if new frame is good ref, if yes set it else continue initializing step
       if (good_keypoint_distribution(cur_frame)) {

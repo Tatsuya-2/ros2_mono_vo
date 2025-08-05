@@ -103,9 +103,10 @@ private:
   rclcpp::Logger logger_;
   State state_;
   Frame ref_frame_;
-  float distribution_thresh_;
-  double lowes_distance_ratio_ = 0.7;
-  double min_matches_for_parallax_ = 100;
+  int occupancy_grid_div_ = 50;             // NxN grid size to check for good keypoint distribution
+  float distribution_thresh_ = 0.5f;        // threshold for good keypoint distribution
+  double lowes_distance_ratio_ = 0.7;       // Lowe's distance ratio for finding good matches
+  double min_matches_for_init_ = 100;       // minimum number of matches for initialization
   double ransac_thresh_h_ = 2.0;            // px homography RANSAC threshold
   double ransac_thresh_f_ = 1.0;            // px fundamental RANSAC threshold
   double f_inlier_thresh_ = 0.5;            // fundamental inlier threshold ratio
