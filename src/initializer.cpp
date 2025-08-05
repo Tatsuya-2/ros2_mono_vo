@@ -1,5 +1,7 @@
 #include "mono_vo/initializer.hpp"
 
+#include "mono_vo/ros_parameter_handler.hpp"
+
 namespace mono_vo
 {
 
@@ -11,6 +13,36 @@ Initializer::Initializer(
   ref_frame_(cv::Mat()),
   feature_processor_(feature_processor)
 {
+}
+
+void Initializer::configure_parameters(RosParameterHandler & param_handler)
+{
+  param_handler.declare_and_get(
+    "occupancy_grid_div", occupancy_grid_div_, "Grid size (N) for checking keypoint distribution.");
+
+  param_handler.declare_and_get(
+    "kp_distribution_thresh", kp_distribution_thresh_,
+    "Minimum ratio of grid cells that must contain keypoints.");
+
+  param_handler.declare_and_get(
+    "lowes_distance_ratio", lowes_distance_ratio_,
+    "Lowe's ratio for feature matching; lower is stricter.");
+
+  param_handler.declare_and_get(
+    "min_matches_for_init", min_matches_for_init_,
+    "Minimum matches needed to attempt VO initialization.");
+
+  param_handler.declare_and_get(
+    "ransac_reproj_thresh", ransac_reproj_thresh_,
+    "RANSAC reprojection threshold (pixels) for H/F model fitting.");
+
+  param_handler.declare_and_get(
+    "f_inlier_thresh", f_inlier_thresh_,
+    "Minimum inlier ratio to accept the Fundamental matrix model.");
+
+  param_handler.declare_and_get(
+    "model_score_thresh", model_score_thresh_,
+    "Score ratio (H/F) threshold to decide between planar and general scene models.");
 }
 
 bool Initializer::is_initalized() { return state_ == State::INITIALIZED; }
@@ -36,7 +68,7 @@ bool Initializer::good_keypoint_distribution(const Frame & frame)
   RCLCPP_INFO(logger_, "occupied cells: %d total cells: %d", occupied_cells, total_cells);
   auto occupancy = static_cast<double>(occupied_cells) / total_cells;
   RCLCPP_INFO(logger_, "occupancy: %lf", occupancy);
-  if (occupancy > distribution_thresh_) {
+  if (occupancy > kp_distribution_thresh_) {
     return true;
   }
   return false;

@@ -42,6 +42,12 @@ void MonoVO::setup()
   path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/camera/path", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", path_pub_->get_topic_name());
 
+  auto initializer_param_h = RosParameterHandler(this, "initializer");
+  initializer_.configure_parameters(initializer_param_h);
+
+  auto tracker_param_h = RosParameterHandler(this, "tracker");
+  tracker_.configure_parameters(tracker_param_h);
+
   RCLCPP_INFO(this->get_logger(), "mono_vo node initialized");
 }
 

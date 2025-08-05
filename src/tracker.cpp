@@ -12,6 +12,49 @@ Tracker::Tracker(Map::Ptr map, FeatureProcessor::Ptr feature_extractor, rclcpp::
 {
 }
 
+void Tracker::configure_parameters(RosParameterHandler & param_handler)
+{
+  param_handler.declare_and_get(
+    "tracking_error_thresh", tracking_error_thresh_,
+    "Lucas-Kanade (LK) optical flow tracking error threshold in pixels.");
+
+  param_handler.declare_and_get(
+    "min_observations_before_triangulation", min_observations_before_triangulation_,
+    "Keyframe trigger: minimum total feature observations required.");
+
+  param_handler.declare_and_get(
+    "min_tracked_points", min_tracked_points_,
+    "Minimum tracked points required; tracking is declared lost if count falls below this.");
+
+  param_handler.declare_and_get(
+    "max_tracking_after_keyframe", max_tracking_after_keyframe_,
+    "Keyframe trigger: maximum number of frames to track after the last keyframe.");
+
+  param_handler.declare_and_get(
+    "max_rotation_from_keyframe", max_rotation_from_keyframe_,
+    "Keyframe trigger: maximum rotation (radians) from the last keyframe.");
+
+  param_handler.declare_and_get(
+    "max_translation_from_keyframe", max_translation_from_keyframe_,
+    "Keyframe trigger: maximum translation (meters) from the last keyframe.");
+
+  param_handler.declare_and_get(
+    "ransac_reproj_thresh", ransac_reproj_thresh_,
+    "RANSAC reprojection threshold (pixels) for estimating pose.");
+
+  param_handler.declare_and_get(
+    "model_score_thresh", model_score_thresh_,
+    "H/F model score threshold for robust pose estimation.");
+
+  param_handler.declare_and_get(
+    "f_inlier_thresh", f_inlier_thresh_,
+    "Minimum inlier ratio to accept the Fundamental matrix model for pose estimation.");
+
+  param_handler.declare_and_get(
+    "lowes_distance_ratio", lowes_distance_ratio_,
+    "Lowe's ratio for matching new features against the last keyframe.");
+}
+
 Frame Tracker::track_frame_with_optical_flow(const cv::Mat & new_image)
 {
   Frame new_frame{new_image};
@@ -74,12 +117,12 @@ bool Tracker::has_significant_motion(const Frame & frame)
 
 bool Tracker::should_add_keyframe(const Frame & frame)
 {
-  if (frame.observations.size() < min_observations_before_triangulation_) {
+  if (static_cast<int64_t>(frame.observations.size()) < min_observations_before_triangulation_) {
     RCLCPP_WARN(logger_, "Not enough 3D points for triangulation");
     return true;
   }
 
-  if (tracking_count_from_keyframe_ > max_tracking_after_keyframe_) {
+  if (static_cast<int64_t>(tracking_count_from_keyframe_) > max_tracking_after_keyframe_) {
     RCLCPP_WARN(logger_, "Not enough tracking after keyframe");
     return true;
   }
@@ -246,7 +289,7 @@ std::optional<cv::Affine3d> Tracker::update(
   Frame new_frame = track_frame_with_optical_flow(frame.image);
 
   // check if enough points were tracked
-  if (new_frame.observations.size() < min_tracked_points_) {
+  if (static_cast<int64_t>(new_frame.observations.size()) < min_tracked_points_) {
     RCLCPP_WARN(logger_, "Not enough keypoints were tracked");
     state_ = TrackerState::LOST;
     return std::nullopt;

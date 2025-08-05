@@ -10,6 +10,7 @@
 #include "mono_vo/frame.hpp"
 #include "mono_vo/map.hpp"
 #include "mono_vo/match_data.hpp"
+#include "mono_vo/ros_parameter_handler.hpp"
 #include "mono_vo/utils.hpp"
 
 namespace mono_vo
@@ -29,6 +30,8 @@ public:
     Map::Ptr map,
     FeatureProcessor::Ptr feature_extractor = std::make_shared<FeatureProcessor>(1000),
     rclcpp::Logger logger = rclcpp::get_logger("Initializer"));
+
+  void configure_parameters(RosParameterHandler & reader);
 
   bool is_initalized();
 
@@ -104,7 +107,7 @@ private:
   State state_;
   Frame ref_frame_;
   int occupancy_grid_div_ = 50;             // NxN grid size to check for good keypoint distribution
-  double distribution_thresh_ = 0.5;        // threshold for good keypoint distribution
+  double kp_distribution_thresh_ = 0.5;     // threshold for good keypoint distribution
   double lowes_distance_ratio_ = 0.7;       // Lowe's distance ratio for finding good matches
   double min_matches_for_init_ = 100;       // minimum number of matches for initialization
   double ransac_reproj_thresh_ = 1.0;       // px RANSAC threshold for fitting H/F model

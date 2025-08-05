@@ -1,0 +1,24 @@
+mono_vo_node:
+  ros__parameters:
+    # Initializer Parameters
+    initializer:
+      occupancy_grid_div: 50
+      kp_distribution_thresh: 0.5
+      lowes_distance_ratio: 0.7
+      min_matches_for_init: 100
+      ransac_reproj_thresh: 1.0
+      f_inlier_thresh: 0.5
+      model_score_thresh: 0.56
+
+    # Tracker Parameters
+    tracker:
+      tracking_error_thresh: 30.0
+      min_observations_before_triangulation: 100
+      min_tracked_points: 10
+      max_tracking_after_keyframe: 10
+      max_rotation_from_keyframe: 0.261799388 # 15 degrees
+      max_translation_from_keyframe: 1.0
+      ransac_reproj_thresh: 1.0
+      model_score_thresh: 0.85
+      f_inlier_thresh: 0.5
+      lowes_distance_ratio: 0.7

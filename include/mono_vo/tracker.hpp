@@ -12,6 +12,7 @@
 #include "mono_vo/keyframe.hpp"
 #include "mono_vo/landmark.hpp"
 #include "mono_vo/map.hpp"
+#include "mono_vo/ros_parameter_handler.hpp"
 #include "mono_vo/utils.hpp"
 
 namespace mono_vo
@@ -30,6 +31,8 @@ public:
     Map::Ptr map,
     FeatureProcessor::Ptr feature_extractor = std::make_shared<FeatureProcessor>(1000),
     rclcpp::Logger logger = rclcpp::get_logger("Tracker"));
+
+  void configure_parameters(RosParameterHandler & param_handler);
 
   /**
    * Tracks the given new image using optical flow.
@@ -132,10 +135,10 @@ private:
   FeatureProcessor::Ptr feature_processor_;
   rclcpp::Logger logger_;
   float tracking_error_thresh_ = 30.0;                       // px LK tracking error threshold
-  size_t min_observations_before_triangulation_ = 100;       // trigger for keyframe addition
-  size_t min_tracked_points_ = 10;                           // below which tracker is declared lost
-  size_t max_tracking_after_keyframe_ = 10;                  // trigger for keyframe addition
-  size_t tracking_count_from_keyframe_ = 0;                  // tracking count since last keyframe
+  int64_t min_observations_before_triangulation_ = 100;      // trigger for keyframe addition
+  int64_t min_tracked_points_ = 10;                          // below which tracker is declared lost
+  int64_t max_tracking_after_keyframe_ = 10;                 // trigger for keyframe addition
+  int64_t tracking_count_from_keyframe_ = 0;                 // tracking count since last keyframe
   double max_rotation_from_keyframe_ = M_PI * 15.0 / 180.0;  // radians (15 degrees)
   double max_translation_from_keyframe_ = 1.0;               // in meters
   double ransac_reproj_thresh_ = 1.0;  // px reprojection threshold for H/F model
