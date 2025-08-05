@@ -198,12 +198,12 @@ bool Tracker::has_parallax(const Frame & frame)
   auto pts2 = frame.get_points_2d();
   // calculate homography
   std::vector<uchar> inliers_h;
-  cv::findHomography(pts1, pts2, cv::RANSAC, ransac_reprojection_thresh_, inliers_h);
+  cv::findHomography(pts1, pts2, cv::RANSAC, ransac_reproj_thresh_, inliers_h);
   int score_h = cv::countNonZero(inliers_h);
 
   // calculate fundamental
   std::vector<uchar> inliers_f;
-  cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC, ransac_reprojection_thresh_, 0.99, inliers_f);
+  cv::findFundamentalMat(pts1, pts2, cv::FM_RANSAC, ransac_reproj_thresh_, 0.99, inliers_f);
   int score_f = cv::countNonZero(inliers_f);
 
   RCLCPP_INFO(logger_, "score h: %d, score f: %d", score_h, score_f);

@@ -107,8 +107,7 @@ private:
   float distribution_thresh_ = 0.5f;        // threshold for good keypoint distribution
   double lowes_distance_ratio_ = 0.7;       // Lowe's distance ratio for finding good matches
   double min_matches_for_init_ = 100;       // minimum number of matches for initialization
-  double ransac_thresh_h_ = 2.0;            // px homography RANSAC threshold
-  double ransac_thresh_f_ = 1.0;            // px fundamental RANSAC threshold
+  double ransac_reproj_thresh_ = 1.0;       // px RANSAC threshold for fitting H/F model
   double f_inlier_thresh_ = 0.5;            // fundamental inlier threshold ratio
   double model_score_thresh_ = 0.56;        // max H/F ratio
   double current_min_model_score_ = 100.0;  // min H/F ratio for debug

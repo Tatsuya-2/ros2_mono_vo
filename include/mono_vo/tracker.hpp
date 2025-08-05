@@ -131,16 +131,16 @@ private:
   Frame prev_frame_;
   FeatureProcessor::Ptr feature_processor_;
   rclcpp::Logger logger_;
-  float tracking_error_thresh_ = 30.0;
-  size_t min_observations_before_triangulation_ = 100;
-  size_t min_tracked_points_ = 10;
-  size_t max_tracking_after_keyframe_ = 10;
-  size_t tracking_count_from_keyframe_ = 0;
-  double max_rotation_from_keyframe_ = M_PI / 12.0;  // in radians (15 degrees)
-  double max_translation_from_keyframe_ = 1.0;       // in meters
-  double ransac_reprojection_thresh_ = 3.0;          // in pixels
-  double model_score_thresh_ = 0.85;                 // h/f score
-  double f_inlier_thresh_ = 0.5;
-  double lowes_distance_ratio_ = 0.7;
+  float tracking_error_thresh_ = 30.0;                       // px LK tracking error threshold
+  size_t min_observations_before_triangulation_ = 100;       // trigger for keyframe addition
+  size_t min_tracked_points_ = 10;                           // below which tracker is declared lost
+  size_t max_tracking_after_keyframe_ = 10;                  // trigger for keyframe addition
+  size_t tracking_count_from_keyframe_ = 0;                  // tracking count since last keyframe
+  double max_rotation_from_keyframe_ = M_PI * 15.0 / 180.0;  // radians (15 degrees)
+  double max_translation_from_keyframe_ = 1.0;               // in meters
+  double ransac_reproj_thresh_ = 1.0;  // px reprojection threshold for H/F model
+  double model_score_thresh_ = 0.85;   // h/f score
+  double f_inlier_thresh_ = 0.5;       // funandamental inlier threshold
+  double lowes_distance_ratio_ = 0.7;  // Lowe's distance ratio for finding good matches
 };
 }  // namespace mono_vo
