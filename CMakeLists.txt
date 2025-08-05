@@ -17,7 +17,7 @@ find_package(OpenCV REQUIRED)
 
 set(TARGET_NAME mono_vo_component)
 
-add_library(${TARGET_NAME} SHARED src/mono_vo.cpp src/feature_extractor.cpp 
+add_library(${TARGET_NAME} SHARED src/mono_vo.cpp src/feature_processor.cpp 
 src/frame.cpp src/initializer.cpp src/keyframe.cpp src/landmark.cpp src/map.cpp 
 src/match_data.cpp src/tracker.cpp src/utils.cpp)
 
