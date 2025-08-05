@@ -17,10 +17,10 @@ public:
   using Ptr = std::shared_ptr<KeyFrame>;
   explicit KeyFrame(const cv::Affine3d & pose);
 
-  bool is_pose_default(const cv::Affine3d & pose, double eps = 1e-9);
-
   // A constructor to create a KeyFrame from a temporary Frame object
   explicit KeyFrame(const Frame & frame);
+
+  bool is_pose_default(const cv::Affine3d & pose, double eps = 1e-9);
 
   void add_observation(
     const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id = -1);
