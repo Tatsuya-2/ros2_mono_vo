@@ -34,8 +34,33 @@ public:
 
   void reset();
 
+  /**
+   * Evaluates the distribution of keypoints across a frame to ensure a good spread.
+   *
+   * This function checks if the keypoints in the provided frame are well-distributed
+   * by dividing the image into a grid and counting the number of grid cells occupied
+   * by at least one keypoint. It calculates the occupancy ratio of occupied cells to
+   * total cells and compares it against a predefined threshold to determine if the
+   * distribution is sufficient.
+   *
+   * @param frame The frame containing keypoints to evaluate.
+   * @return True if the keypoint distribution is above the threshold, otherwise false.
+   */
   bool good_keypoint_distribution(const Frame & frame);
 
+  /**
+   * Check if the parallax between two sets of points is sufficient.
+   *
+   * This function calculates the score of the homography and fundamental matrix
+   * between two sets of points. It checks if the score of the fundamental matrix
+   * is above a certain threshold, and if the ratio of the score of the homography
+   * to the score of the fundamental matrix is below a certain threshold. If both
+   * conditions are met, the function returns true. Otherwise, it returns false.
+   *
+   * @param pts1 The first set of points.
+   * @param pts2 The second set of points.
+   * @return True if the parallax is sufficient, otherwise false.
+   */
   bool check_parallax(const std::vector<cv::Point2f> & pts1, const std::vector<cv::Point2f> & pts2);
 
   /**
@@ -61,6 +86,16 @@ public:
     const std::vector<cv::Point2f> & ref_points, const std::vector<cv::Point2f> & cur_points,
     std::vector<uchar> & inliers);
 
+  /**
+   * @brief Try to initialize the VO system using the given frame and K matrix.
+   * The state machine is as follows:
+   *  - State::OBTAINING_REF: Get a frame with a good keypoint distribution.
+   *  - State::INITIALIZING: Find a frame with enough matches and pass parallax check.
+   *  - State::INITIALIZED: The VO system is now initialized and the first two frames are added.
+   * @param frame the current frame
+   * @param K the camera intrinsic matrix
+   * @return the reference frame if the system is now initialized, else std::nullopt
+   */
   std::optional<Frame> try_initializing(const Frame & frame, const cv::Mat & K);
 
 private:
@@ -71,11 +106,10 @@ private:
   float distribution_thresh_;
   double lowes_distance_ratio_ = 0.7;
   double min_matches_for_parallax_ = 100;
-  double ransac_thresh_h_ = 2.0;      // px homography RANSAC threshold
-  double ransac_thresh_f_ = 1.0;      // px fundamental RANSAC threshold
-  double f_inlier_thresh_ = 0.5;      // fundamental inlier threshold ratio
-  double model_score_thresh_ = 0.56;  // max H/F ratio
-
+  double ransac_thresh_h_ = 2.0;            // px homography RANSAC threshold
+  double ransac_thresh_f_ = 1.0;            // px fundamental RANSAC threshold
+  double f_inlier_thresh_ = 0.5;            // fundamental inlier threshold ratio
+  double model_score_thresh_ = 0.56;        // max H/F ratio
   double current_min_model_score_ = 100.0;  // min H/F ratio for debug
 
   FeatureProcessor::Ptr feature_processor_;

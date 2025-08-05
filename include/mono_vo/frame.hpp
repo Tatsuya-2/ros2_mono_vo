@@ -19,6 +19,7 @@ struct Observation
   long landmark_id;
 };
 
+// Types of filtering that can be done while getting observations
 enum class ObservationFilter
 {
   ALL,
