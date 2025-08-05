@@ -7,7 +7,7 @@ long KeyFrame::next_id_ = 0;
 
 KeyFrame::KeyFrame(const cv::Affine3d & pose) : id(next_id_++), pose_wc(pose) {}
 
-bool KeyFrame::isAffine3dDefault(const cv::Affine3d & pose, double eps)
+bool KeyFrame::is_pose_default(const cv::Affine3d & pose, double eps)
 {
   return cv::norm(pose.matrix - cv::Affine3d().matrix) < eps;
 }
@@ -16,7 +16,7 @@ KeyFrame::KeyFrame(const Frame & frame)
 {
   // assert that the frame is not empty
   assert(!frame.observations.empty());
-  assert(!isAffine3dDefault(frame.pose_wc, 1e-9));
+  assert(!is_pose_default(frame.pose_wc, 1e-9));
   id = next_id_++;
   pose_wc = frame.pose_wc;
   observations = frame.observations;

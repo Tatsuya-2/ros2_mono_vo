@@ -17,7 +17,7 @@ public:
   using Ptr = std::shared_ptr<KeyFrame>;
   explicit KeyFrame(const cv::Affine3d & pose);
 
-  bool isAffine3dDefault(const cv::Affine3d & pose, double eps = 1e-9);
+  bool is_pose_default(const cv::Affine3d & pose, double eps = 1e-9);
 
   // A constructor to create a KeyFrame from a temporary Frame object
   explicit KeyFrame(const Frame & frame);
