@@ -48,29 +48,29 @@ All parameters are loaded from the `config/vo_params.yaml` file at launch.
 
 These parameters control the two-view initialization process.
 
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
-| `initializer.occupancy_grid_div` | `int` | Grid size (N) for checking keypoint distribution. |
-| `initializer.kp_distribution_thresh`| `double` | Minimum ratio of grid cells that must contain keypoints. |
-| `initializer.lowes_distance_ratio` | `double` | Lowe's ratio for feature matching; lower is stricter. |
-| `initializer.min_matches_for_init` | `int` | Minimum matches needed to attempt VO initialization. |
-| `initializer.ransac_reproj_thresh` | `double` | RANSAC reprojection threshold (pixels) for H/F model fitting. |
-| `initializer.f_inlier_thresh` | `double` | Minimum inlier ratio to accept the Fundamental matrix model. |
-| `initializer.model_score_thresh` | `double` | Score ratio (H/F) threshold to decide between planar and general scene models. |
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `initializer.occupancy_grid_div` | `int` | `50` | Grid size (N) for checking keypoint distribution. |
+| `initializer.kp_distribution_thresh`| `double` | `0.5` | Minimum ratio of grid cells that must contain keypoints. |
+| `initializer.lowes_distance_ratio` | `double` | `0.7` | Lowe's ratio for feature matching; lower is stricter. |
+| `initializer.min_matches_for_init` | `int` | `100` | Minimum matches needed to attempt VO initialization. |
+| `initializer.ransac_reproj_thresh` | `double` | `1.0` | RANSAC reprojection threshold (pixels) for H/F model fitting. |
+| `initializer.f_inlier_thresh` | `double` | `0.5` | Minimum inlier ratio to accept the Fundamental matrix model. |
+| `initializer.model_score_thresh` | `double` | `0.56`| Score ratio (H/F) threshold to decide between planar and general scene models. |
 
 ### Tracker Parameters
 
 These parameters control the frame-to-frame tracking and keyframe generation logic.
 
-| Parameter | Type | Description |
-| :--- | :--- | :--- |
-| `tracker.tracking_error_thresh` | `double` | Lucas-Kanade (LK) optical flow tracking error threshold in pixels. |
-| `tracker.min_observations_before_triangulation` | `int` | Keyframe trigger: minimum total feature observations required. |
-| `tracker.min_tracked_points` | `int` | Minimum tracked points required; tracking is declared lost if count falls below this. |
-| `tracker.max_tracking_after_keyframe` | `int` | Keyframe trigger: maximum number of frames to track after the last keyframe. |
-| `tracker.max_rotation_from_keyframe` | `double` | Keyframe trigger: maximum rotation (radians) from the last keyframe. |
-| `tracker.max_translation_from_keyframe` | `double` | Keyframe trigger: maximum translation (meters) from the last keyframe. |
-| `tracker.ransac_reproj_thresh` | `double` | RANSAC reprojection threshold (pixels) for estimating pose. |
-| `tracker.model_score_thresh` | `double` | H/F model score threshold for robust pose estimation. |
-| `tracker.f_inlier_thresh` | `double` | Minimum inlier ratio to accept the Fundamental matrix model for pose estimation. |
-| `tracker.lowes_distance_ratio` | `double` | Lowe's ratio for matching new features against the last keyframe. |
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `tracker.tracking_error_thresh` | `double` | `30.0` | Lucas-Kanade (LK) optical flow tracking error threshold in pixels. |
+| `tracker.min_observations_before_triangulation` | `int` | `100` | Keyframe trigger: minimum total feature observations required. |
+| `tracker.min_tracked_points` | `int` | `10` | Minimum tracked points required; tracking is declared lost if count falls below this. |
+| `tracker.max_tracking_after_keyframe` | `int` | `10` | Keyframe trigger: maximum number of frames to track after the last keyframe. |
+| `tracker.max_rotation_from_keyframe` | `double` | `0.2618` | Keyframe trigger: maximum rotation from the last keyframe (radians, 15 deg). |
+| `tracker.max_translation_from_keyframe` | `double` | `1.0` | Keyframe trigger: maximum translation (meters) from the last keyframe. |
+| `tracker.ransac_reproj_thresh` | `double` | `1.0` | RANSAC reprojection threshold (pixels) for estimating pose. |
+| `tracker.model_score_thresh` | `double` | `0.85` | H/F model score threshold for robust pose estimation. |
+| `tracker.f_inlier_thresh` | `double` | `0.5` | Minimum inlier ratio to accept the Fundamental matrix model for pose estimation. |
+| `tracker.lowes_distance_ratio` | `double` | `0.7` | Lowe's ratio for matching new features against the last keyframe. |
