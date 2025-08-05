@@ -4,7 +4,7 @@ A simple monocular visual odometry system for ROS2. This package provides a sing
 
 ## Prerequisites
 
-- ROS 2 (Humble or newer recommended)
+- ROS 2 (Tested on Jazzy)
 - OpenCV
 - A calibrated camera (undistorted) publishing `sensor_msgs/Image` and `sensor_msgs/CameraInfo` messages.
 
@@ -12,7 +12,7 @@ A simple monocular visual odometry system for ROS2. This package provides a sing
 
 1.  Build the package:
     ```bash
-    colcon build --packages-select mono_vo
+    colcon build --packages-up-to mono_vo
     ```
 
 2.  Source the workspace:
