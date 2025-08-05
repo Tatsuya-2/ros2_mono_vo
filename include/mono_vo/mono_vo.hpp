@@ -38,7 +38,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
-  std::shared_ptr<Map> map_;
+  Map::Ptr map_;
   FeatureProcessor::Ptr feature_processor_;
   Initializer initializer_;
   Tracker tracker_;

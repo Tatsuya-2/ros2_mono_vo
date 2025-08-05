@@ -27,7 +27,7 @@ class Tracker
 {
 public:
   Tracker(
-    std::shared_ptr<Map> map,
+    Map::Ptr map,
     FeatureProcessor::Ptr feature_extractor = std::make_shared<FeatureProcessor>(1000),
     rclcpp::Logger logger = rclcpp::get_logger("Tracker"));
 
@@ -126,7 +126,7 @@ public:
   std::optional<cv::Affine3d> update(const Frame & frame, const cv::Mat & K, const cv::Mat & d);
 
 private:
-  std::shared_ptr<Map> map_;
+  Map::Ptr map_;
   TrackerState state_ = TrackerState::INITIALIZING;
   Frame prev_frame_;
   FeatureProcessor::Ptr feature_processor_;

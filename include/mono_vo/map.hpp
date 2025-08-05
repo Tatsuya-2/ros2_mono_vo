@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <opencv2/opencv.hpp>
 #include <rclcpp/logging.hpp>
 
@@ -12,6 +13,8 @@ namespace mono_vo
 class Map
 {
 public:
+  using Ptr = std::shared_ptr<Map>;
+
   Map(rclcpp::Logger logger = rclcpp::get_logger("Map"));
 
   void add_landmark(const Landmark & landmark);

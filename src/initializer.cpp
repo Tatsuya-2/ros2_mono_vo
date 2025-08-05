@@ -4,7 +4,7 @@ namespace mono_vo
 {
 
 Initializer::Initializer(
-  std::shared_ptr<Map> map, FeatureProcessor::Ptr feature_processor, rclcpp::Logger logger)
+  Map::Ptr map, FeatureProcessor::Ptr feature_processor, rclcpp::Logger logger)
 : map_(map),
   logger_(logger),
   state_(State::OBTAINING_REF),

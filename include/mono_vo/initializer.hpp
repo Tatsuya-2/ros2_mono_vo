@@ -26,7 +26,7 @@ public:
   };
 
   Initializer(
-    std::shared_ptr<Map> map,
+    Map::Ptr map,
     FeatureProcessor::Ptr feature_extractor = std::make_shared<FeatureProcessor>(1000),
     rclcpp::Logger logger = rclcpp::get_logger("Initializer"));
 
@@ -99,7 +99,7 @@ public:
   std::optional<Frame> try_initializing(const Frame & frame, const cv::Mat & K);
 
 private:
-  std::shared_ptr<Map> map_;
+  Map::Ptr map_;
   rclcpp::Logger logger_;
   State state_;
   Frame ref_frame_;

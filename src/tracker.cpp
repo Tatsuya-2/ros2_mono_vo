@@ -7,8 +7,7 @@
 namespace mono_vo
 {
 
-Tracker::Tracker(
-  std::shared_ptr<Map> map, FeatureProcessor::Ptr feature_extractor, rclcpp::Logger logger)
+Tracker::Tracker(Map::Ptr map, FeatureProcessor::Ptr feature_extractor, rclcpp::Logger logger)
 : map_(map), prev_frame_(cv::Mat()), feature_processor_(feature_extractor), logger_(logger)
 {
 }
