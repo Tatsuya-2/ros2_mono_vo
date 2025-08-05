@@ -13,7 +13,7 @@ def generate_launch_description():
     Generates the launch description for the mono_vo node.
     """
 
-    pkg_share = get_package_share_directory('ros2_mono_vo')
+    pkg_share = get_package_share_directory('mono_vo')
     
     default_params_file = os.path.join(
         pkg_share,
@@ -78,7 +78,7 @@ def generate_launch_description():
 
     mono_vo_node = Node(
         # General Node configuration
-        package='ros2_mono_vo',             
+        package='mono_vo',             
         executable='mono_vo',     
         name='mono_vo',           # This name must match the one in your YAML file
         output='screen',
