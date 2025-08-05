@@ -2,7 +2,7 @@
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-#include "mono_vo/feature_extractor.hpp"
+#include "mono_vo/feature_processor.hpp"
 #include "mono_vo/landmark.hpp"
 
 namespace mono_vo
@@ -33,7 +33,7 @@ public:
   using Ptr = std::shared_ptr<Frame>;
   explicit Frame(const cv::Mat & image);
 
-  void extract_observations(const FeatureExtractor::Ptr extractor);
+  void extract_observations(const FeatureProcessor::Ptr feature_processor);
 
   void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id);
 

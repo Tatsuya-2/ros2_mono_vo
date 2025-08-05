@@ -7,7 +7,7 @@
 #include <rclcpp/logging.hpp>
 #include <vector>
 
-#include "mono_vo/feature_extractor.hpp"
+#include "mono_vo/feature_processor.hpp"
 #include "mono_vo/frame.hpp"
 #include "mono_vo/keyframe.hpp"
 #include "mono_vo/landmark.hpp"
@@ -28,7 +28,7 @@ class Tracker
 public:
   Tracker(
     std::shared_ptr<Map> map,
-    FeatureExtractor::Ptr feature_extractor = std::make_shared<FeatureExtractor>(1000),
+    FeatureProcessor::Ptr feature_extractor = std::make_shared<FeatureProcessor>(1000),
     rclcpp::Logger logger = rclcpp::get_logger("Tracker"));
 
   /**
@@ -129,7 +129,7 @@ private:
   std::shared_ptr<Map> map_;
   TrackerState state_ = TrackerState::INITIALIZING;
   Frame prev_frame_;
-  FeatureExtractor::Ptr feature_extractor_;
+  FeatureProcessor::Ptr feature_processor_;
   rclcpp::Logger logger_;
   float tracking_error_thresh_ = 30.0;
   size_t min_observations_before_triangulation_ = 100;

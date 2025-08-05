@@ -11,10 +11,10 @@ namespace mono_vo
 MonoVO::MonoVO(const rclcpp::NodeOptions & options)
 : Node("mono_vo", options),
   map_(std::make_shared<Map>(this->get_logger().get_child("map"))),
-  feature_extractor_(
-    std::make_shared<FeatureExtractor>(1000, this->get_logger().get_child("feature_extractor"))),
-  initializer_(map_, feature_extractor_, this->get_logger().get_child("initializer")),
-  tracker_(map_, feature_extractor_, this->get_logger().get_child("tracker"))
+  feature_processor_(
+    std::make_shared<FeatureProcessor>(1000, this->get_logger().get_child("feature_processor"))),
+  initializer_(map_, feature_processor_, this->get_logger().get_child("initializer")),
+  tracker_(map_, feature_processor_, this->get_logger().get_child("tracker"))
 {
   this->setup();
 }

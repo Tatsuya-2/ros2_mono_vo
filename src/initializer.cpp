@@ -4,13 +4,13 @@ namespace mono_vo
 {
 
 Initializer::Initializer(
-  std::shared_ptr<Map> map, FeatureExtractor::Ptr feature_extractor, rclcpp::Logger logger)
+  std::shared_ptr<Map> map, FeatureProcessor::Ptr feature_processor, rclcpp::Logger logger)
 : map_(map),
   logger_(logger),
   state_(State::OBTAINING_REF),
   ref_frame_(cv::Mat()),
   distribution_thresh_(0.5f),
-  feature_extractor_(feature_extractor)
+  feature_processor_(feature_processor)
 {
 }
 
@@ -137,7 +137,7 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
   }
 
   Frame cur_frame{frame};
-  cur_frame.extract_observations(feature_extractor_);
+  cur_frame.extract_observations(feature_processor_);
 
   if (state_ == State::OBTAINING_REF) {
     if (!good_keypoint_distribution(cur_frame)) return std::nullopt;
@@ -153,7 +153,7 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
     auto cur_descriptors = cur_frame.get_descriptors();
 
     std::vector<cv::DMatch> good_matches =
-      feature_extractor_->find_matches(ref_descriptors, cur_descriptors, lowes_distance_ratio_);
+      feature_processor_->find_matches(ref_descriptors, cur_descriptors, lowes_distance_ratio_);
 
     if (good_matches.size() < min_matches_for_parallax_) {
       RCLCPP_WARN(logger_, "Initializer: Not enough matches");

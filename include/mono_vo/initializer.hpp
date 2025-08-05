@@ -6,7 +6,7 @@
 #include <rclcpp/logging.hpp>
 #include <vector>
 
-#include "mono_vo/feature_extractor.hpp"
+#include "mono_vo/feature_processor.hpp"
 #include "mono_vo/frame.hpp"
 #include "mono_vo/map.hpp"
 #include "mono_vo/match_data.hpp"
@@ -27,7 +27,7 @@ public:
 
   Initializer(
     std::shared_ptr<Map> map,
-    FeatureExtractor::Ptr feature_extractor = std::make_shared<FeatureExtractor>(1000),
+    FeatureProcessor::Ptr feature_extractor = std::make_shared<FeatureProcessor>(1000),
     rclcpp::Logger logger = rclcpp::get_logger("Initializer"));
 
   bool is_initalized();
@@ -78,6 +78,6 @@ private:
 
   double current_min_model_score_ = 100.0;  // min H/F ratio for debug
 
-  FeatureExtractor::Ptr feature_extractor_;
+  FeatureProcessor::Ptr feature_processor_;
 };
 }  // namespace mono_vo

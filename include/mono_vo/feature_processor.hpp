@@ -6,13 +6,13 @@
 
 namespace mono_vo
 {
-class FeatureExtractor
+class FeatureProcessor
 {
 public:
-  using Ptr = std::shared_ptr<FeatureExtractor>;
+  using Ptr = std::shared_ptr<FeatureProcessor>;
 
-  FeatureExtractor(
-    int num_features = 1000, rclcpp::Logger logger = rclcpp::get_logger("FeatureExtractor"));
+  FeatureProcessor(
+    int num_features = 1000, rclcpp::Logger logger = rclcpp::get_logger("FeatureProcessor"));
 
   std::vector<cv::KeyPoint> detect(const cv::Mat & image) const;
 

@@ -8,8 +8,8 @@ namespace mono_vo
 {
 
 Tracker::Tracker(
-  std::shared_ptr<Map> map, FeatureExtractor::Ptr feature_extractor, rclcpp::Logger logger)
-: map_(map), prev_frame_(cv::Mat()), feature_extractor_(feature_extractor), logger_(logger)
+  std::shared_ptr<Map> map, FeatureProcessor::Ptr feature_extractor, rclcpp::Logger logger)
+: map_(map), prev_frame_(cv::Mat()), feature_processor_(feature_extractor), logger_(logger)
 {
 }
 
@@ -141,11 +141,11 @@ void Tracker::add_new_keyframe(Frame & frame, const cv::Mat & K)
 {
   // detect new features from frame
   frame.clear_observations();
-  frame.extract_observations(feature_extractor_);
+  frame.extract_observations(feature_processor_);
 
   // find matches with the previous keyframe points that dont have landmarks.
   auto prev_kframe = map_->get_last_keyframe();
-  std::vector<cv::DMatch> good_matches = feature_extractor_->find_matches(
+  std::vector<cv::DMatch> good_matches = feature_processor_->find_matches(
     prev_kframe->get_descriptors(), frame.get_descriptors(), lowes_distance_ratio_);
 
   std::vector<MatchData> good_matches_data;

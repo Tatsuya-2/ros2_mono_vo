@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "mono_vo/feature_extractor.hpp"
+#include "mono_vo/feature_processor.hpp"
 #include "mono_vo/initializer.hpp"
 #include "mono_vo/map.hpp"
 #include "mono_vo/tracker.hpp"
@@ -39,7 +39,7 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
 
   std::shared_ptr<Map> map_;
-  FeatureExtractor::Ptr feature_extractor_;
+  FeatureProcessor::Ptr feature_processor_;
   Initializer initializer_;
   Tracker tracker_;
 

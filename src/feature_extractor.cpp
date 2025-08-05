@@ -1,28 +1,28 @@
-#include "mono_vo/feature_extractor.hpp"
+#include "mono_vo/feature_processor.hpp"
 
 namespace mono_vo
 {
-FeatureExtractor::FeatureExtractor(int num_features, rclcpp::Logger logger)
+FeatureProcessor::FeatureProcessor(int num_features, rclcpp::Logger logger)
 : detector_(cv::ORB::create(num_features)),
   matcher_(cv::BFMatcher(cv::NORM_HAMMING)),
   logger_(logger)
 {
 }
 
-std::vector<cv::KeyPoint> FeatureExtractor::detect(const cv::Mat & image) const
+std::vector<cv::KeyPoint> FeatureProcessor::detect(const cv::Mat & image) const
 {
   std::vector<cv::KeyPoint> keypoints;
   detector_->detect(image, keypoints);
   return keypoints;
 }
 
-void FeatureExtractor::detect_and_compute(
+void FeatureProcessor::detect_and_compute(
   const cv::Mat & image, std::vector<cv::KeyPoint> & keypoints, cv::Mat & descriptors) const
 {
   detector_->detectAndCompute(image, cv::noArray(), keypoints, descriptors);
 }
 
-std::vector<cv::DMatch> FeatureExtractor::find_matches(
+std::vector<cv::DMatch> FeatureProcessor::find_matches(
   const cv::Mat & descriptors1, const cv::Mat & descriptors2, double lowes_distance_ratio) const
 {
   std::vector<std::vector<cv::DMatch>> knn_matches;

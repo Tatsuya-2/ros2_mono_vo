@@ -5,11 +5,11 @@ namespace mono_vo
 
 Frame::Frame(const cv::Mat & image) : image(image.clone()) {}
 
-void Frame::extract_observations(const FeatureExtractor::Ptr extractor)
+void Frame::extract_observations(const FeatureProcessor::Ptr feature_processor)
 {
   std::vector<cv::KeyPoint> keypoints;
   cv::Mat descriptors;
-  extractor->detect_and_compute(image, keypoints, descriptors);
+  feature_processor->detect_and_compute(image, keypoints, descriptors);
   observations.reserve(keypoints.size());
   for (size_t i = 0; i < keypoints.size(); i++) {
     add_observation(keypoints[i], descriptors.row(i), -1);
