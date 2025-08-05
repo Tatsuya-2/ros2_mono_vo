@@ -34,8 +34,8 @@ bool Initializer::good_keypoint_distribution(const Frame & frame)
   }
   auto total_cells = grid.cols * grid.rows;
   RCLCPP_INFO(logger_, "occupied cells: %d total cells: %d", occupied_cells, total_cells);
-  auto occupancy = static_cast<float>(occupied_cells) / total_cells;
-  RCLCPP_INFO(logger_, "occupancy: %f", occupancy);
+  auto occupancy = static_cast<double>(occupied_cells) / total_cells;
+  RCLCPP_INFO(logger_, "occupancy: %lf", occupancy);
   if (occupancy > distribution_thresh_) {
     return true;
   }
