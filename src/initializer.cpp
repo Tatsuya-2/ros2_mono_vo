@@ -187,7 +187,7 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
     std::vector<cv::DMatch> good_matches =
       feature_processor_->find_matches(ref_descriptors, cur_descriptors, lowes_distance_ratio_);
 
-    if (good_matches.size() < min_matches_for_init_) {
+    if (static_cast<int64_t>(good_matches.size()) < min_matches_for_init_) {
       RCLCPP_WARN(logger_, "Initializer: Not enough matches");
       // check if new frame is good ref, if yes set it else continue initializing step
       if (good_keypoint_distribution(cur_frame)) {

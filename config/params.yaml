@@ -1,4 +1,4 @@
-mono_vo_node:
+mono_vo:
   ros__parameters:
     # Initializer Parameters
     initializer:

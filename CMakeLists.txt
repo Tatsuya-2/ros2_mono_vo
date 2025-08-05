@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(mono_vo)
+project(ros2_mono_vo)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -72,6 +72,11 @@ install(DIRECTORY launch
 )
 
 install(DIRECTORY config
+  DESTINATION share/${PROJECT_NAME}
+  OPTIONAL
+)
+
+install(DIRECTORY rviz
   DESTINATION share/${PROJECT_NAME}
   OPTIONAL
 )
