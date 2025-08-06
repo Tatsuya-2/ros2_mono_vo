@@ -77,10 +77,30 @@ These parameters control the frame-to-frame tracking and keyframe generation log
 
 ## Algorithm
 
+The algorithm is pure initialization and tracking between camera frames, no bundle adjustment (BA) or optimization is implemented at the moment.
+
+### Key
+
+**Frame:** Stores image, pose and observations {keypoint, descriptor, lamdmark_id}, where the landmark_id is the id of a 3D point. This is a temporary object used by both the initializer and tracker to compute odometry between frames.
+
+**Keyframe:** Similar to Frame it stores the pose and observations only as part of the map. It has a good parallax with the previous keyframe and does not store the image for efficiency.
+
+**Map:** Stores the keyframes and landmarks which describes the map built by the system.
+
 ### Initializer
+
+The initializer is responsible for finding the first 2 pairs of images that are suitable for triangulating 3D points in the map. The first reference frame is set as the origin while the other frame forms the first keyframe. Once suitable frames are found with enough matches and having good parallax between both, the essential matrix is computed, which is then decomposed to recover the pose of the camera. Given the pose and the point correspondences the new 3D points can be triangulated. The points, map origin and the first keyframe are then added to the map.
 
 ![initializer_algorithm_flowchart](./images/mono_vo_initializer.png)
 
 ### Tracker
+
+The tracker is responsible for tracking 2D points of the last frame into the current frame and then recover the new pose of the camera given the 2D-3D point correspondences. The 2D points are tracked with Lucas Kanade optical flow algorithm into the current frame, now given the new set of observations and their corresponding 3D map points the camera pose can be recovered by solving the Perspective-n-Point (PnP) using RANSAC method in OpenCV. 
+At every new pose recovery the new keyframe criteria is checked which involves checking:
+- if enough frames have passed since last keyframe (time constrain), OR
+- if the number of points tracked falls below a set threshold, OR
+- if there is significant motion from the last keyframe.
+If this criteria is met then the frame is checked for good parallax to the last keyframe. If there is enough parallax then new points are triangulated between the frames and added to the map, the frame now is added as a keyframe to the map. This process then continues to track teh 2D points in the frame.
+The tracker is detected lost if there are very few points tracked using optical flow between 2 frames (extreme motion), for now there is no recovery option for this pipeline. 
 
 ![tracker_algorithm_flowchart](./images/mono_vo_tracker.png)
