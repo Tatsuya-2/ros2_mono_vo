@@ -74,3 +74,13 @@ These parameters control the frame-to-frame tracking and keyframe generation log
 | `tracker.model_score_thresh` | `double` | `0.85` | H/F model score threshold for robust pose estimation. |
 | `tracker.f_inlier_thresh` | `double` | `0.5` | Minimum inlier ratio to accept the Fundamental matrix model for pose estimation. |
 | `tracker.lowes_distance_ratio` | `double` | `0.7` | Lowe's ratio for matching new features against the last keyframe. |
+
+## Algorithm
+
+### Initializer
+
+![initializer_algorithm_flowchart](./images/mono_vo_initializer.png)
+
+### Tracker
+
+![tracker_algorithm_flowchart](./images/mono_vo_tracker.png)
