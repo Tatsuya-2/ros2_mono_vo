@@ -1,12 +1,12 @@
 # ros2_mono_vo
 
-A monocular visual odometry system for ROS2, built from the ground up to learn and implement the fundamental principles of SLAM.
+A monocular visual odometry system for ROS2, built from the ground up to learn and implement the fundamental principles of SLAM. The system's architecture, particularly the use of Frames, Keyframes, and Map Points, is heavily inspired by influential works like **ORB-SLAM**.
 
-This package provides a single ROS2 node that estimates the 6-DOF pose of a camera from a monocular image stream. It currently operates as a pure VO front-end, handling feature tracking and pose estimation on a frame-by-frame basis.
+This package provides a single ROS2 node that estimates the 6-DOF pose of a camera from a monocular image stream. It currently operates as a pure **VO front-end**, handling feature tracking and pose estimation on a frame-by-frame basis.
 
 The roadmap for this project is to develop it into a full SLAM system by adding:
-- Backend Optimization: Implementing Bundle Adjustment (BA) to globally refine the map and camera poses.
-- Loop Closure: To recognize previously visited locations and correct for accumulated drift.
+*   **Backend Optimization:** Implementing Bundle Adjustment (BA) to globally refine the map and camera poses.
+*   **Loop Closure:** To recognize previously visited locations and correct for accumulated drift.
 
 ![mono_vo_viz](./images/mono_vo_viz.png)
 
