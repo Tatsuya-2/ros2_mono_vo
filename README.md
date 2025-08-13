@@ -2,6 +2,8 @@
 
 A simple monocular visual odometry system for ROS2. This package provides a single node that estimates the 6-DOF pose of a camera from a monocular image stream.
 
+![mono_vo_viz](./images/mono_vo_viz.png)
+
 ## Prerequisites
 
 - ROS 2 (Tested on Jazzy)
