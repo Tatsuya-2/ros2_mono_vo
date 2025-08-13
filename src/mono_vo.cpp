@@ -33,14 +33,16 @@ void MonoVO::setup()
     });
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", camera_info_sub_->get_topic_name());
 
-  pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("/camera/pose", 10);
-  RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", pose_pub_->get_topic_name());
+  odometry_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/mono_vo/odom", 10);
+  RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", odometry_pub_->get_topic_name());
 
   pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/camera/pointcloud", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", pointcloud_pub_->get_topic_name());
 
   path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/camera/path", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", path_pub_->get_topic_name());
+
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   auto initializer_param_h = RosParameterHandler(this, "initializer");
   initializer_.configure_parameters(initializer_param_h);
@@ -79,7 +81,7 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     return;
   }
 
-  std::optional<cv::Affine3d> pose = tracker_.update(frame, K_.value(), d_.value());
+  std::optional<cv::Affine3d> pose_wc = tracker_.update(frame, K_.value(), d_.value());
 
   if (tracker_.get_state() == TrackerState::LOST) {
     RCLCPP_INFO(this->get_logger(), "Tracker Lost");
@@ -89,14 +91,21 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
   std_msgs::msg::Header header;
   header.stamp = msg->header.stamp;
-  header.frame_id = "map";
-  if (pose.has_value()) {
-    geometry_msgs::msg::PoseStamped pose_msg =
-      utils::affine3d_to_pose_stamped_msg(pose.value(), header);
-    pose_pub_->publish(pose_msg);
+  header.frame_id = "odom";
+  if (pose_wc.has_value()) {
+    nav_msgs::msg::Odometry odometry_msg =
+      utils::affine3d_to_odometry_msg(pose_wc.value(), header, "camera");
+    odometry_pub_->publish(odometry_msg);
+
+    geometry_msgs::msg::TransformStamped transform_msg =
+      utils::affine3d_to_transform_stamped_msg(pose_wc.value(), header, "camera");
+    tf_broadcaster_->sendTransform(transform_msg);
 
     path_msg_.header = header;
-    path_msg_.poses.push_back(pose_msg);
+    geometry_msgs::msg::PoseStamped current_pose_stamped;
+    current_pose_stamped.pose = odometry_msg.pose.pose;
+    current_pose_stamped.header = header;
+    path_msg_.poses.push_back(current_pose_stamped);
     path_pub_->publish(path_msg_);
   }
 

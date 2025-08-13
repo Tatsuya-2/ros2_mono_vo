@@ -1,5 +1,7 @@
 #pragma once
 
+#include <tf2_ros/transform_broadcaster.h>
+
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <memory>
 #include <nav_msgs/msg/path.hpp>
@@ -34,9 +36,11 @@ private:
 private:
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pose_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+
+  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   Map::Ptr map_;
   FeatureProcessor::Ptr feature_processor_;
