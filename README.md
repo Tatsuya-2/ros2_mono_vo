@@ -1,8 +1,23 @@
 # ros2_mono_vo
 
-A simple monocular visual odometry system for ROS2. This package provides a single node that estimates the 6-DOF pose of a camera from a monocular image stream.
+A monocular visual odometry system for ROS2, built from the ground up to learn and implement the fundamental principles of SLAM.
+
+This package provides a single ROS2 node that estimates the 6-DOF pose of a camera from a monocular image stream. It currently operates as a pure VO front-end, handling feature tracking and pose estimation on a frame-by-frame basis.
+
+The roadmap for this project is to develop it into a full SLAM system by adding:
+- Backend Optimization: Implementing Bundle Adjustment (BA) to globally refine the map and camera poses.
+- Loop Closure: To recognize previously visited locations and correct for accumulated drift.
 
 ![mono_vo_viz](./images/mono_vo_viz.png)
+
+## Features
+
+*   **6-DOF Pose Estimation:** Tracks the full 3D translation and rotation of the camera from a single camera stream.
+*   **Real-time Visualization:** Publishes the camera trajectory, current pose, and 3D map points, which can be easily visualized in RViz2.
+*   **ROS2 Native:** Built as a composable ROS2 node for seamless integration. It subscribes to a standard `sensor_msgs/Image` topic and publishes odometry and pose messages.
+*   **Modern C++ Implementation:** The codebase is written in C++17, emphasizing clean, efficient, and maintainable code.
+*   **Detailed Algorithm Breakdown:** The README provides a clear, step-by-step explanation of the initialization and tracking pipelines, making it an excellent learning resource.
+*   **Minimal Dependencies:** Relies primarily on ROS2 and OpenCV, making it straightforward to build and run.
 
 ## Prerequisites
 
