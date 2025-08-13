@@ -2,6 +2,8 @@
 
 #include <builtin_interfaces/msg/time.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/transform_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <opencv2/opencv.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
@@ -34,15 +36,26 @@ cv::Mat draw_matched_points(
   const cv::Mat & img1, const cv::Mat & img2, const std::vector<cv::Point2f> & points1,
   const std::vector<cv::Point2f> & points2, int point_radius = 4, int line_thickness = 1);
 
-geometry_msgs::msg::PoseStamped affine3d_to_pose_stamped_msg(
-  const cv::Affine3d & affine_pose, const std_msgs::msg::Header & header);
+nav_msgs::msg::Odometry affine3d_to_odometry_msg(
+  const cv::Affine3d & pose_wc, const std_msgs::msg::Header & header,
+  const std::string & child_frame_id);
+
+geometry_msgs::msg::TransformStamped affine3d_to_transform_stamped_msg(
+  const cv::Affine3d & pose_wc, const std_msgs::msg::Header & header,
+  const std::string & child_frame_id);
 
 /**
- * @brief Converts a std::vector<cv::Point3f> to a sensor_msgs::msg::PointCloud2.
+ * @brief Converts a vector of 3D points from an OpenCV-convention map frame to a
+ *        sensor_msgs::msg::PointCloud2 message in a ROS-convention map frame.
  *
- * @param points The input vector of 3D points (cv::Point3f).
- * @param header The ROS header to use for the PointCloud2 message (contains frame_id and stamp).
- * @return A sensor_msgs::msg::PointCloud2 message.
+ * This function is crucial for visualizing map points from a typical VO/SLAM system in RViz.
+ * It assumes the input points are in a frame where X is right, Y is down, and Z is forward.
+ * It transforms them to the standard ROS frame where X is forward, Y is left, and Z is up.
+ *
+ * @param points The vector of 3D points (cv::Point3f) from the VO map.
+ * @param header The ROS message header. The header.frame_id should be set to your
+ *               fixed world frame (e.g., "map" or "odom").
+ * @return sensor_msgs::msg::PointCloud2 The resulting point cloud message, ready to be published.
  */
 sensor_msgs::msg::PointCloud2 points3d_to_pointcloud_msg(
   const std::vector<cv::Point3f> & points, const std_msgs::msg::Header & header);
