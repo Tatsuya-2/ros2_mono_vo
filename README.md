@@ -36,9 +36,9 @@ A simple monocular visual odometry system for ROS2. This package provides a sing
 
 | Topic | Type | Description |
 | :--- | :--- | :--- |
-| `/camera/pose` | `geometry_msgs::msg::PoseStamped` | The estimated 6-DOF pose of the camera in the odometry frame. |
-| `/camera/path` | `nav_msgs::msg::Path` | The full estimated trajectory of the camera, useful for visualization in RViz. |
-| `/camera/pointcloud` | `sensor_msgs::msg::PointCloud2` | The current 3D map points triangulated from keyframes. |
+| `/odom` | `nav_msgs::msg::Odometry` | The odometry message containing the estimated 6-DOF pose of the camera in the odometry frame. |
+| `/path` | `nav_msgs::msg::Path` | The full estimated trajectory of the camera, useful for visualization in RViz. |
+| `/pointcloud` | `sensor_msgs::msg::PointCloud2` | The current 3D map points triangulated from keyframes. |
 
 ## Parameters
 
