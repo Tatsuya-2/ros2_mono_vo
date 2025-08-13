@@ -94,7 +94,7 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /camera/pointcloud
+        Value: /pointcloud
       Use Fixed Frame: true
       Use rainbow: true
       Value: true
@@ -124,7 +124,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /camera/path
+        Value: /path
       Value: true
     - Angle Tolerance: 0.10000000149011612
       Class: rviz_default_plugins/Odometry
@@ -163,7 +163,7 @@ Visualization Manager:
         Filter size: 10
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /mono_vo/odom
+        Value: /odom
       Value: true
   Enabled: true
   Global Options:

@@ -33,13 +33,13 @@ void MonoVO::setup()
     });
   RCLCPP_INFO(this->get_logger(), "Subscribed to '%s'", camera_info_sub_->get_topic_name());
 
-  odometry_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/mono_vo/odom", 10);
+  odometry_pub_ = this->create_publisher<nav_msgs::msg::Odometry>("/odom", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", odometry_pub_->get_topic_name());
 
-  pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/camera/pointcloud", 10);
+  pointcloud_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("/pointcloud", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", pointcloud_pub_->get_topic_name());
 
-  path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/camera/path", 10);
+  path_pub_ = this->create_publisher<nav_msgs::msg::Path>("/path", 10);
   RCLCPP_INFO(this->get_logger(), "Publishing to '%s'", path_pub_->get_topic_name());
 
   tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);

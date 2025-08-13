@@ -61,18 +61,18 @@ def generate_launch_description():
 
     # Output topic arguments
     declared_arguments.append(DeclareLaunchArgument(
-        'pose_topic',
-        default_value='/camera/pose',
-        description='Output topic for the estimated camera pose.'
+        'odom_topic',
+        default_value='/odom',
+        description='Output topic for odometry.'
     ))
     declared_arguments.append(DeclareLaunchArgument(
         'pointcloud_topic',
-        default_value='/camera/pointcloud',
+        default_value='/pointcloud',
         description='Output topic for the map point cloud.'
     ))
     declared_arguments.append(DeclareLaunchArgument(
         'path_topic',
-        default_value='/camera/path',
+        default_value='/path',
         description='Output topic for the camera trajectory path.'
     ))
 
@@ -97,9 +97,9 @@ def generate_launch_description():
             ('/camera/image_rect', LaunchConfiguration('image_topic')),
             ('/camera/camera_info', LaunchConfiguration('cam_info_topic')),
             # Publications
-            ('/camera/pose', LaunchConfiguration('pose_topic')),
-            ('/camera/pointcloud', LaunchConfiguration('pointcloud_topic')),
-            ('/camera/path', LaunchConfiguration('path_topic')),
+            ('/odom', LaunchConfiguration('odom_topic')),
+            ('/pointcloud', LaunchConfiguration('pointcloud_topic')),
+            ('/path', LaunchConfiguration('path_topic')),
         ]
     )
 
