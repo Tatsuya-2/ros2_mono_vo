@@ -1,7 +1,8 @@
-// mono_vo/keyframe.h
 #pragma once
 
+#include <algorithm>
 #include <opencv2/opencv.hpp>
+#include <optional>
 #include <vector>
 
 #include "mono_vo/frame.hpp"
@@ -10,58 +11,43 @@
 namespace mono_vo
 {
 
-class KeyFrame
+struct KeyFrame
 {
 public:
   using Ptr = std::shared_ptr<KeyFrame>;
-  KeyFrame(const cv::Affine3d & pose) : id(next_id_++), pose_wc(pose) {}
+  explicit KeyFrame(const cv::Affine3d & pose);
 
-  bool isAffine3dDefault(const cv::Affine3d & pose, double eps = 1e-9)
-  {
-    return cv::norm(pose.matrix - cv::Affine3d().matrix) < eps;
-  }
   // A constructor to create a KeyFrame from a temporary Frame object
-  KeyFrame(const Frame & frame)
-  {
-    // assert that the frame is not empty
-    assert(!frame.keypoints.empty());
-    assert(!frame.descriptors.empty());
-    assert(!frame.landmark_ids.empty());
-    assert(!isAffine3dDefault(frame.pose_wc, 1e-9));
-    id = next_id_++;
-    pose_wc = frame.pose_wc;
-    keypoints = frame.keypoints;
-    descriptors = frame.descriptors;
-    landmark_ids = frame.landmark_ids;
-  }
+  explicit KeyFrame(const Frame & frame);
 
-  void add_observation(const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id)
-  {
-    keypoints.push_back(keypoint);
-    descriptors.push_back(descriptor);
-    landmark_ids.push_back(landmark_id);
-  }
+  bool is_pose_default(const cv::Affine3d & pose, double eps = 1e-9);
 
-  std::vector<cv::Point2f> get_points_2d() const
-  {
-    std::vector<cv::Point2f> points_2d;
-    points_2d.resize(keypoints.size());
-    for (size_t i = 0; i < keypoints.size(); i++) {
-      points_2d[i] = keypoints[i].pt;
-    }
-    return points_2d;
-  }
+  void add_observation(
+    const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id = -1);
+
+  std::vector<cv::Point2f> get_points_2d(
+    ObservationFilter filter_type = ObservationFilter::ALL) const;
+
+  std::vector<cv::Point2f> get_points_2d_for_landmarks(
+    const std::vector<long> & landmark_ids) const;
+
+  std::optional<Observation> get_observation_for_landmark(long landmark_id) const;
+
+  cv::Mat get_descriptors() const;
+
+  std::vector<Observation> get_observations(
+    ObservationFilter filter_type = ObservationFilter::ALL) const;
+
+  void clear_observations();
 
   long id;
-  cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc)
-  std::vector<cv::KeyPoint> keypoints;
-  cv::Mat descriptors;
-  std::vector<long> landmark_ids;
+  cv::Affine3d
+    pose_wc;  // Pose of the camera in the world (T_wc), takes point in camera to the world frame
+  std::vector<Observation> observations;
 
 private:
   static long next_id_;
+  std::unordered_map<long, size_t> landmark_id_to_index_;
 };
-
-long KeyFrame::next_id_ = 0;
 
 }  // namespace mono_vo
