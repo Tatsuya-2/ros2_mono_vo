@@ -5,11 +5,13 @@ namespace mono_vo
 
 long KeyFrame::next_id_ = 0;
 
-KeyFrame::KeyFrame(const cv::Affine3d & pose) : id(next_id_++), pose_wc(pose) {}
+KeyFrame::KeyFrame(const Sophus::SE3d & pose) : id(next_id_++), pose_wc(pose) {}
 
-bool KeyFrame::is_pose_default(const cv::Affine3d & pose, double eps)
+bool KeyFrame::is_pose_default(const Sophus::SE3d & pose, double eps)
 {
-  return cv::norm(pose.matrix - cv::Affine3d().matrix) < eps;
+  Sophus::SE3d identity;                          // default = identity
+  Sophus::SE3d diff = identity.inverse() * pose;  // difference pose
+  return diff.matrix().block<3, 4>(0, 0).norm() < eps;
 }
 
 KeyFrame::KeyFrame(const Frame & frame)

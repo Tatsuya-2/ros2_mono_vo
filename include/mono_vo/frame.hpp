@@ -1,5 +1,6 @@
 #pragma once
 #include <opencv2/opencv.hpp>
+#include <sophus/se3.hpp>
 #include <vector>
 
 #include "mono_vo/feature_processor.hpp"
@@ -52,7 +53,7 @@ public:
 
   long id;
   cv::Mat image;
-  cv::Affine3d pose_wc;  // Pose of the camera in the world (T_wc), takes point in camera to world
+  Sophus::SE3d pose_wc;  // Pose of the camera in the world (T_wc), takes point in camera to world
   std::vector<Observation> observations;
   bool is_tracked =
     false;  // indicates if the frame has passed the tracking stage which invalidates keypoint fields

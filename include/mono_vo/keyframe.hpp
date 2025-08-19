@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <opencv2/opencv.hpp>
 #include <optional>
+#include <sophus/se3.hpp>
 #include <vector>
 
 #include "mono_vo/frame.hpp"
@@ -15,12 +16,12 @@ struct KeyFrame
 {
 public:
   using Ptr = std::shared_ptr<KeyFrame>;
-  explicit KeyFrame(const cv::Affine3d & pose);
+  explicit KeyFrame(const Sophus::SE3d & pose);
 
   // A constructor to create a KeyFrame from a temporary Frame object
   explicit KeyFrame(const Frame & frame);
 
-  bool is_pose_default(const cv::Affine3d & pose, double eps = 1e-9);
+  bool is_pose_default(const Sophus::SE3d & pose, double eps = 1e-9);
 
   void add_observation(
     const cv::KeyPoint & keypoint, const cv::Mat & descriptor, long landmark_id = -1);
@@ -41,7 +42,7 @@ public:
   void clear_observations();
 
   long id;
-  cv::Affine3d
+  Sophus::SE3d
     pose_wc;  // Pose of the camera in the world (T_wc), takes point in camera to the world frame
   std::vector<Observation> observations;
 
