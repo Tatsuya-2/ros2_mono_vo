@@ -15,6 +15,7 @@ find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
+find_package(g2o REQUIRED g2o_core)
 
 set(TARGET_NAME mono_vo_component)
 
