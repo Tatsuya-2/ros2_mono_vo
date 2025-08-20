@@ -2,6 +2,7 @@
 
 #include <cv_bridge/cv_bridge.hpp>
 #include <functional>
+#include <sophus/se3.hpp>
 
 #include "mono_vo/utils.hpp"
 
@@ -81,7 +82,7 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
     return;
   }
 
-  std::optional<cv::Affine3d> pose_wc = tracker_.update(frame, K_.value(), d_.value());
+  std::optional<Sophus::SE3d> pose_wc = tracker_.update(frame, K_.value(), d_.value());
 
   if (tracker_.get_state() == TrackerState::LOST) {
     RCLCPP_INFO(this->get_logger(), "Tracker Lost");
@@ -94,11 +95,11 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
   header.frame_id = "odom";
   if (pose_wc.has_value()) {
     nav_msgs::msg::Odometry odometry_msg =
-      utils::affine3d_to_odometry_msg(pose_wc.value(), header, "camera");
+      utils::se3d_to_odometry_msg(pose_wc.value(), header, "camera");
     odometry_pub_->publish(odometry_msg);
 
     geometry_msgs::msg::TransformStamped transform_msg =
-      utils::affine3d_to_transform_stamped_msg(pose_wc.value(), header, "camera");
+      utils::se3d_to_transform_stamped_msg(pose_wc.value(), header, "camera");
     tf_broadcaster_->sendTransform(transform_msg);
 
     path_msg_.header = header;
