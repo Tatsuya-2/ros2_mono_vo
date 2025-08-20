@@ -1,5 +1,7 @@
 #include "mono_vo/initializer.hpp"
 
+#include <opencv2/core/eigen.hpp>
+
 #include "mono_vo/ros_parameter_handler.hpp"
 
 namespace mono_vo
@@ -265,12 +267,15 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
     }
 
     // add origin keyframe
-    KeyFrame::Ptr origin_keyframe =
-      std::make_shared<KeyFrame>(cv::Affine3d(cv::Matx33d::eye(), cv::Vec3d::zeros()));
+    KeyFrame::Ptr origin_keyframe = std::make_shared<KeyFrame>(Sophus::SE3d());
     map_->add_keyframe(origin_keyframe);
 
     // set frame pose
-    cur_frame.pose_wc = cv::Affine3d(R_cw, t_cw).inv();
+    Eigen::Matrix3d Re;
+    Eigen::Vector3d te;
+    cv::cv2eigen(R_cw, Re);
+    cv::cv2eigen(t_cw, te);
+    cur_frame.pose_wc = Sophus::SE3d(Re, te).inverse();
 
     // Create landmarks and update landmark_id in the original frames using the final data.
     int valid_pts3d_idx = 0;
