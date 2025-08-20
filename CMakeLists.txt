@@ -11,11 +11,11 @@ find_package(rclcpp_components REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
-find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(g2o REQUIRED g2o_core)
+find_package(Sophus REQUIRED)
 
 set(TARGET_NAME mono_vo_component)
 
@@ -41,7 +41,6 @@ ament_target_dependencies(${TARGET_NAME}
   sensor_msgs
   nav_msgs
   geometry_msgs
-  tf2
   tf2_ros
   cv_bridge
 )
@@ -56,6 +55,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
  ${OpenCV_LIBS}
+ Sophus::Sophus
 )
 
 rclcpp_components_register_node(${TARGET_NAME}
