@@ -72,8 +72,8 @@ std::vector<Observation> Frame::get_observations(ObservationFilter filter_type) 
   valid_obs.reserve(observations.size());
   for (const auto & obs : observations) {
     if (
-      filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1 ||
-      filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1) {
+      (filter_type == ObservationFilter::WITH_LANDMARKS && obs.landmark_id != -1) ||
+      (filter_type == ObservationFilter::WITHOUT_LANDMARKS && obs.landmark_id == -1)) {
       valid_obs.push_back(obs);
     }
   }
