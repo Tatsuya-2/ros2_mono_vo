@@ -255,5 +255,31 @@ double compute_reprojection_error(
   return cv::norm(p2d_projected - p2d_observed);
 }
 
+cv::Affine3d se3d_to_affine3d(const Sophus::SE3d & se3)
+{
+  const Eigen::Matrix4d & T = se3.matrix();
+
+  // OpenCV uses row-major, Eigen uses column-major
+  cv::Matx44d cv_matrix(
+    T(0, 0), T(0, 1), T(0, 2), T(0, 3), T(1, 0), T(1, 1), T(1, 2), T(1, 3), T(2, 0), T(2, 1),
+    T(2, 2), T(2, 3), T(3, 0), T(3, 1), T(3, 2), T(3, 3));
+
+  return cv::Affine3d(cv_matrix);
+}
+
+Sophus::SE3d affine3d_to_se3d(const cv::Affine3d & affine)
+{
+  // Get direct access to the matrix data
+  const cv::Matx44d & cv_mat = affine.matrix;
+
+  // Construct Eigen matrix directly from OpenCV data
+  Eigen::Matrix4d T;
+  T << cv_mat(0, 0), cv_mat(0, 1), cv_mat(0, 2), cv_mat(0, 3), cv_mat(1, 0), cv_mat(1, 1),
+    cv_mat(1, 2), cv_mat(1, 3), cv_mat(2, 0), cv_mat(2, 1), cv_mat(2, 2), cv_mat(2, 3),
+    cv_mat(3, 0), cv_mat(3, 1), cv_mat(3, 2), cv_mat(3, 3);
+
+  return Sophus::SE3d(T);
+}
+
 }  // namespace utils
 }  // namespace mono_vo

@@ -7,6 +7,7 @@
 #include <opencv2/opencv.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <sensor_msgs/msg/point_field.hpp>
+#include <sophus/se3.hpp>
 
 #include "mono_vo/frame.hpp"
 
@@ -74,6 +75,20 @@ sensor_msgs::msg::PointCloud2 points3d_to_pointcloud_msg(
  */
 double compute_reprojection_error(
   const cv::Point3f & p3d_world, const cv::Point2f & p2d_observed, const cv::Mat & P);
+
+/**
+ * Convert from Sophus::SE3d to cv::Affine3d (Fast version using direct memory copy)
+ * @param se3 Input SE3 transformation (Sophus)
+ * @return Equivalent Affine3d transformation (OpenCV)
+ */
+cv::Affine3d se3d_to_affine3d(const Sophus::SE3d & se3);
+
+/**
+ * Convert from cv::Affine3d to Sophus::SE3d (Fast version)
+ * @param affine Input Affine3d transformation (OpenCV)
+ * @return Equivalent SE3 transformation (Sophus)
+ */
+Sophus::SE3d affine3d_to_se3d(const cv::Affine3d & affine);
 
 }  // namespace utils
 }  // namespace mono_vo
