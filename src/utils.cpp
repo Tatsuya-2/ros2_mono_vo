@@ -1,10 +1,13 @@
 #include "mono_vo/utils.hpp"
 
-#include <tf2/LinearMath/Matrix3x3.h>
-#include <tf2/LinearMath/Quaternion.h>
-
+#include <Eigen/Dense>
 #include <cmath>
 #include <cstring>
+#include <sophus/se3.hpp>
+
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "std_msgs/msg/header.hpp"
 
 namespace mono_vo
 {
@@ -82,50 +85,35 @@ cv::Mat draw_matched_points(
   return result;
 }
 
-nav_msgs::msg::Odometry affine3d_to_odometry_msg(
-  const cv::Affine3d & pose_wc, const std_msgs::msg::Header & header,
+nav_msgs::msg::Odometry se3d_to_odometry_msg(
+  const Sophus::SE3d & pose_wc, const std_msgs::msg::Header & header,
   const std::string & child_frame_id)
 {
-  // Constant transform from OpenCV camera frame to ROS standard frame (REP 103)
-  // ROS X-fwd, Y-left, Z-up <=> OpenCV Z-fwd, X-right, Y-down
-  // ROS X = OpenCV Z
-  // ROS Y = -OpenCV X
-  // ROS Z = -OpenCV Y
-  const static cv::Matx33d cv_to_ros_rotation(0, 0, 1, -1, 0, 0, 0, -1, 0);
+  // Coordinate frame transformation matrix
+  const static Eigen::Matrix3d cv_to_ros_rotation =
+    (Eigen::Matrix3d() << 0, 0, 1, -1, 0, 0, 0, -1, 0).finished();
 
-  // Extract and convert pose
-  cv::Matx33d R_cv = pose_wc.rotation();
-  cv::Vec3d t_cv = pose_wc.translation();
+  // Apply coordinate transformation to the SE3 directly
+  Sophus::SE3d pose_ros = Sophus::SE3d(cv_to_ros_rotation, Eigen::Vector3d::Zero()) * pose_wc *
+                          Sophus::SE3d(cv_to_ros_rotation.transpose(), Eigen::Vector3d::Zero());
 
-  // Rotate the rotation matrix (conjugation)
-  cv::Matx33d R_ros = cv_to_ros_rotation * R_cv * cv_to_ros_rotation.t();
-  // Rotate the translation vector
-  cv::Vec3d t_ros = cv_to_ros_rotation * t_cv;
-
-  // Convert rotation matrix to quaternion
-  tf2::Matrix3x3 tf_rotation(
-    R_ros(0, 0), R_ros(0, 1), R_ros(0, 2), R_ros(1, 0), R_ros(1, 1), R_ros(1, 2), R_ros(2, 0),
-    R_ros(2, 1), R_ros(2, 2));
-
-  // Convert to quaternion
-  tf2::Quaternion q_ros;
-  tf_rotation.getRotation(q_ros);
-  q_ros.normalize();
+  // Extract components from transformed pose
+  const Eigen::Vector3d & t_ros = pose_ros.translation();
+  const Eigen::Quaterniond & q_eigen = pose_ros.unit_quaternion();
 
   // Assemble the Odometry message
   nav_msgs::msg::Odometry odom_msg;
   odom_msg.header = header;
   odom_msg.child_frame_id = child_frame_id;
+  odom_msg.pose.pose.position.x = t_ros.x();
+  odom_msg.pose.pose.position.y = t_ros.y();
+  odom_msg.pose.pose.position.z = t_ros.z();
+  odom_msg.pose.pose.orientation.x = q_eigen.x();
+  odom_msg.pose.pose.orientation.y = q_eigen.y();
+  odom_msg.pose.pose.orientation.z = q_eigen.z();
+  odom_msg.pose.pose.orientation.w = q_eigen.w();
 
-  odom_msg.pose.pose.position.x = t_ros[0];
-  odom_msg.pose.pose.position.y = t_ros[1];
-  odom_msg.pose.pose.position.z = t_ros[2];
-  odom_msg.pose.pose.orientation.x = q_ros.x();
-  odom_msg.pose.pose.orientation.y = q_ros.y();
-  odom_msg.pose.pose.orientation.z = q_ros.z();
-  odom_msg.pose.pose.orientation.w = q_ros.w();
-
-  // TODO (myron): Needs tuning based on observations
+  // Set covariance values
   odom_msg.pose.covariance[0] = 0.1;    // x
   odom_msg.pose.covariance[7] = 0.1;    // y
   odom_msg.pose.covariance[14] = 0.1;   // z
@@ -133,8 +121,6 @@ nav_msgs::msg::Odometry affine3d_to_odometry_msg(
   odom_msg.pose.covariance[28] = 0.05;  // rotation y
   odom_msg.pose.covariance[35] = 0.05;  // rotation z
 
-  // Twist is not provided by a single pose, so leave it zero
-  // and indicate high uncertainty in covariance
   odom_msg.twist.covariance[0] = 1e-3;
   odom_msg.twist.covariance[7] = 1e-3;
   odom_msg.twist.covariance[35] = 1e-3;
@@ -142,41 +128,33 @@ nav_msgs::msg::Odometry affine3d_to_odometry_msg(
   return odom_msg;
 }
 
-geometry_msgs::msg::TransformStamped affine3d_to_transform_stamped_msg(
-  const cv::Affine3d & pose_wc, const std_msgs::msg::Header & header,
+geometry_msgs::msg::TransformStamped se3d_to_transform_stamped_msg(
+  const Sophus::SE3d & pose_wc, const std_msgs::msg::Header & header,
   const std::string & child_frame_id)
 {
-  const static cv::Matx33d cv_to_ros_rotation(0, 0, 1, -1, 0, 0, 0, -1, 0);
+  // Coordinate frame transformation matrix
+  const static Eigen::Matrix3d cv_to_ros_rotation =
+    (Eigen::Matrix3d() << 0, 0, 1, -1, 0, 0, 0, -1, 0).finished();
 
-  // Extract and convert pose
-  cv::Matx33d R_cv = pose_wc.rotation();
-  cv::Vec3d t_cv = pose_wc.translation();
+  // Apply coordinate transformation to the SE3 directly
+  Sophus::SE3d pose_ros = Sophus::SE3d(cv_to_ros_rotation, Eigen::Vector3d::Zero()) * pose_wc *
+                          Sophus::SE3d(cv_to_ros_rotation.transpose(), Eigen::Vector3d::Zero());
 
-  cv::Vec3d t_ros = cv_to_ros_rotation * t_cv;
-  cv::Matx33d R_ros = cv_to_ros_rotation * R_cv * cv_to_ros_rotation.t();
-
-  // Convert rotation matrix to quaternion
-  tf2::Matrix3x3 tf_rotation(
-    R_ros(0, 0), R_ros(0, 1), R_ros(0, 2), R_ros(1, 0), R_ros(1, 1), R_ros(1, 2), R_ros(2, 0),
-    R_ros(2, 1), R_ros(2, 2));
-
-  // Convert to quaternion
-  tf2::Quaternion q_ros;
-  tf_rotation.getRotation(q_ros);
-  q_ros.normalize();
+  // Extract components from transformed pose
+  const Eigen::Vector3d & t_ros = pose_ros.translation();
+  const Eigen::Quaterniond & q_eigen = pose_ros.unit_quaternion();
 
   // Assemble the TransformStamped message
   geometry_msgs::msg::TransformStamped t_stamped;
   t_stamped.header = header;
   t_stamped.child_frame_id = child_frame_id;
-
-  t_stamped.transform.translation.x = t_ros[0];
-  t_stamped.transform.translation.y = t_ros[1];
-  t_stamped.transform.translation.z = t_ros[2];
-  t_stamped.transform.rotation.x = q_ros.x();
-  t_stamped.transform.rotation.y = q_ros.y();
-  t_stamped.transform.rotation.z = q_ros.z();
-  t_stamped.transform.rotation.w = q_ros.w();
+  t_stamped.transform.translation.x = t_ros.x();
+  t_stamped.transform.translation.y = t_ros.y();
+  t_stamped.transform.translation.z = t_ros.z();
+  t_stamped.transform.rotation.x = q_eigen.x();
+  t_stamped.transform.rotation.y = q_eigen.y();
+  t_stamped.transform.rotation.z = q_eigen.z();
+  t_stamped.transform.rotation.w = q_eigen.w();
 
   return t_stamped;
 }

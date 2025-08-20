@@ -37,12 +37,26 @@ cv::Mat draw_matched_points(
   const cv::Mat & img1, const cv::Mat & img2, const std::vector<cv::Point2f> & points1,
   const std::vector<cv::Point2f> & points2, int point_radius = 4, int line_thickness = 1);
 
-nav_msgs::msg::Odometry affine3d_to_odometry_msg(
-  const cv::Affine3d & pose_wc, const std_msgs::msg::Header & header,
+/**
+ * Convert Sophus::SE3d to nav_msgs::msg::Odometry
+ * @param pose_wc SE3 pose (world to camera)
+ * @param header ROS message header
+ * @param child_frame_id Child frame identifier
+ * @return Odometry message with OpenCV to ROS coordinate frame conversion
+ */
+nav_msgs::msg::Odometry se3d_to_odometry_msg(
+  const Sophus::SE3d & pose_wc, const std_msgs::msg::Header & header,
   const std::string & child_frame_id);
 
-geometry_msgs::msg::TransformStamped affine3d_to_transform_stamped_msg(
-  const cv::Affine3d & pose_wc, const std_msgs::msg::Header & header,
+/**
+ * Convert Sophus::SE3d to geometry_msgs::msg::TransformStamped
+ * @param pose_wc SE3 pose (world to camera)
+ * @param header ROS message header
+ * @param child_frame_id Child frame identifier
+ * @return TransformStamped message with OpenCV to ROS coordinate frame conversion
+ */
+geometry_msgs::msg::TransformStamped se3d_to_transform_stamped_msg(
+  const Sophus::SE3d & pose_wc, const std_msgs::msg::Header & header,
   const std::string & child_frame_id);
 
 /**
