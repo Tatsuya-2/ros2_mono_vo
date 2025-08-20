@@ -1,6 +1,7 @@
 #include "mono_vo/initializer.hpp"
 
 #include <opencv2/core/eigen.hpp>
+#include <sophus/se3.hpp>
 
 #include "mono_vo/ros_parameter_handler.hpp"
 
