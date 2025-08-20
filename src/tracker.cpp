@@ -1,5 +1,6 @@
 #include "mono_vo/tracker.hpp"
 
+#include <opencv2/core/eigen.hpp>
 #include <sstream>
 
 #include "mono_vo/match_data.hpp"
@@ -91,22 +92,19 @@ Frame Tracker::track_frame_with_optical_flow(const cv::Mat & new_image)
 
 bool Tracker::has_significant_motion(const Frame & frame)
 {
-  // get relative pose
+  // compute T_prev->curr
   KeyFrame::Ptr prev_kframe = map_->get_last_keyframe();
-  cv::Affine3d relative_pose = prev_kframe->pose_wc.inv() * frame.pose_wc;
+  Sophus::SE3d relative_pose = prev_kframe->pose_wc.inverse() * frame.pose_wc;
 
-  double translation = cv::norm(relative_pose.translation());
-
+  // translation magnitude
+  double translation = relative_pose.translation().norm();
   if (translation > max_translation_from_keyframe_) {
     RCLCPP_WARN(logger_, "translation exceeds threshold: %lf", translation);
     return true;
   }
-  // Convert the rotation matrix to an axis-angle rotation vector
-  cv::Matx33d R = relative_pose.rotation();
-  double trace = R(0, 0) + R(1, 1) + R(2, 2);
-  double rotation = std::acos((trace - 1.0) / 2.0);  // angle in radians
 
-  // The magnitude of the rotation vector is the angle in radians
+  // rotation angle (magnitude of rotation vector)
+  double rotation = relative_pose.so3().log().norm();  // radians
   if (rotation > max_rotation_from_keyframe_) {
     RCLCPP_WARN(logger_, "rotation exceeds threshold: %lf", rotation);
     return true;
@@ -201,12 +199,13 @@ void Tracker::add_new_keyframe(Frame & frame, const cv::Mat & K)
   auto [pts_ref_matched, pts_cur_matched] = extract_points_from_matches(good_matches_data);
 
   // use recovered pose from PnP and previous keyframe pose to get projection matrices
-  cv::Affine3d pose_ref_cw = prev_kframe->pose_wc.inv();
-  cv::Affine3d pose_cur_cw = frame.pose_wc.inv();
+  Sophus::SE3d pose_ref_cw = prev_kframe->pose_wc.inverse();
+  Sophus::SE3d pose_cur_cw = frame.pose_wc.inverse();
 
   std::vector<uchar> chirality_mask;
   std::vector<cv::Point3f> pts_3d = triangulate_points(
-    pose_ref_cw, pose_cur_cw, K, pts_ref_matched, pts_cur_matched, chirality_mask);
+    utils::se3d_to_affine3d(pose_ref_cw), utils::se3d_to_affine3d(pose_cur_cw), K, pts_ref_matched,
+    pts_cur_matched, chirality_mask);
 
   // triangulate new 3D points and add to map
   size_t valix_pts3d_idx = 0;
@@ -271,7 +270,7 @@ TrackerState Tracker::get_state() const { return state_; }
 
 void Tracker::reset() { state_ = TrackerState::INITIALIZING; }
 
-std::optional<cv::Affine3d> Tracker::update(
+std::optional<Sophus::SE3d> Tracker::update(
   const Frame & frame, const cv::Mat & K, const cv::Mat & d)
 {
   if (state_ == TrackerState::LOST) {
@@ -313,7 +312,12 @@ std::optional<cv::Affine3d> Tracker::update(
   // get camera pose in world frame
   cv::Mat R_cw;
   cv::Rodrigues(rvec_cw, R_cw);
-  new_frame.pose_wc = cv::Affine3d(R_cw, tvec_cw).inv();
+
+  Eigen::Matrix3d Re_cw;
+  Eigen::Vector3d te_cw;
+  cv::cv2eigen(R_cw, Re_cw);
+  cv::cv2eigen(tvec_cw, te_cw);
+  new_frame.pose_wc = Sophus::SE3d(Re_cw, te_cw).inverse();
 
   tracking_count_from_keyframe_++;
   if (should_add_keyframe(new_frame)) {
@@ -324,7 +328,7 @@ std::optional<cv::Affine3d> Tracker::update(
   }
 
   std::stringstream ss;
-  ss << "Camera pose transform wc: \n" << new_frame.pose_wc.matrix << std::endl;
+  ss << "Camera pose transform wc: \n" << new_frame.pose_wc.matrix() << std::endl;
   RCLCPP_INFO(logger_, "%s", ss.str().c_str());
 
   // update last frame

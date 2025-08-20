@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <optional>
 #include <rclcpp/logging.hpp>
+#include <sophus/se3.hpp>
 #include <vector>
 
 #include "mono_vo/feature_processor.hpp"
@@ -126,7 +127,7 @@ public:
    * - add the new frame as a keyframe if it has enough parallax
    * - update the last frame
    */
-  std::optional<cv::Affine3d> update(const Frame & frame, const cv::Mat & K, const cv::Mat & d);
+  std::optional<Sophus::SE3d> update(const Frame & frame, const cv::Mat & K, const cv::Mat & d);
 
 private:
   Map::Ptr map_;
