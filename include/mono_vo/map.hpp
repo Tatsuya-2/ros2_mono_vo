@@ -43,6 +43,8 @@ public:
 
   const std::map<long, Landmark> & get_all_landmarks() const;
 
+  std::map<long, Landmark> & get_all_landmark_refs();
+
   const std::map<long, KeyFrame::Ptr> & get_all_keyframes() const;
 
   size_t num_landmarks() const;

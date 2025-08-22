@@ -43,6 +43,8 @@ KeyFrame::Ptr & Map::get_last_keyframe() { return keyframes_.at(last_keyframe_id
 
 const std::map<long, Landmark> & Map::get_all_landmarks() const { return landmarks_; }
 
+std::map<long, Landmark> & Map::get_all_landmark_refs() { return landmarks_; }
+
 const std::map<long, KeyFrame::Ptr> & Map::get_all_keyframes() const { return keyframes_; }
 
 size_t Map::num_landmarks() const { return landmarks_.size(); }
