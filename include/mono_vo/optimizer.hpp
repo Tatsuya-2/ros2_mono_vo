@@ -2,6 +2,8 @@
 
 #include <g2o/types/sba/types_six_dof_expmap.h>
 
+#include <memory>
+
 #include "mono_vo/map.hpp"
 
 namespace mono_vo
@@ -9,7 +11,11 @@ namespace mono_vo
 class Optimizer
 {
 public:
-  Optimizer(const cv::Mat K, rclcpp::Logger);
+  using Ptr = std::shared_ptr<Optimizer>;
+
+  Optimizer(rclcpp::Logger = rclcpp::get_logger("Optimizer"));
+
+  void set_camera_params(const cv::Mat & K);
 
   /**
    * @brief Performs local bundle adjustment on a window of recent keyframes.

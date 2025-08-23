@@ -16,6 +16,7 @@
 #include "mono_vo/feature_processor.hpp"
 #include "mono_vo/initializer.hpp"
 #include "mono_vo/map.hpp"
+#include "mono_vo/optimizer.hpp"
 #include "mono_vo/tracker.hpp"
 
 namespace mono_vo
@@ -46,6 +47,7 @@ private:
   FeatureProcessor::Ptr feature_processor_;
   Initializer initializer_;
   Tracker tracker_;
+  Optimizer optimizer_;
 
   std::optional<cv::Mat> K_;
   std::optional<cv::Mat> d_;

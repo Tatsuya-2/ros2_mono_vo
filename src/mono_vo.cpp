@@ -15,7 +15,8 @@ MonoVO::MonoVO(const rclcpp::NodeOptions & options)
   feature_processor_(
     std::make_shared<FeatureProcessor>(1000, this->get_logger().get_child("feature_processor"))),
   initializer_(map_, feature_processor_, this->get_logger().get_child("initializer")),
-  tracker_(map_, feature_processor_, this->get_logger().get_child("tracker"))
+  tracker_(map_, feature_processor_, this->get_logger().get_child("tracker")),
+  optimizer_(this->get_logger().get_child("optimizer"))
 {
   this->setup();
 }
@@ -84,6 +85,10 @@ void MonoVO::image_callback(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
   std::optional<Sophus::SE3d> pose_wc = tracker_.update(frame, K_.value(), d_.value());
 
+  if (pose_wc.has_value()) {
+    optimizer_.local_bundle_adjustment(map_, 10);
+  }
+
   if (tracker_.get_state() == TrackerState::LOST) {
     RCLCPP_INFO(this->get_logger(), "Tracker Lost");
     // TODO (Myron): Add resetting logic
@@ -124,6 +129,7 @@ void MonoVO::camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstShare
 
   K_ = cv::Mat(3, 3, CV_64F, const_cast<double *>(msg->k.data())).clone();
   d_ = cv::Mat(1, 5, CV_64F, const_cast<double *>(msg->d.data())).clone();
+  optimizer_.set_camera_params(K_.value());
 }
 
 }  // namespace mono_vo

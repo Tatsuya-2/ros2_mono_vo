@@ -14,7 +14,7 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(g2o REQUIRED g2o_core)
+find_package(g2o REQUIRED g2o_core g2o_types_sba g2o_types_slam3d g2o_solver_cholmod)
 find_package(Sophus REQUIRED)
 
 set(TARGET_NAME mono_vo_component)
@@ -56,6 +56,9 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
  ${OpenCV_LIBS}
  Sophus::Sophus
+ g2o::core
+ g2o::types_sba
+ g2o::solver_cholmod
 )
 
 rclcpp_components_register_node(${TARGET_NAME}

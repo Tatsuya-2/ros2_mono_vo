@@ -30,8 +30,9 @@ Sophus::SE3d to_sophus(const g2o::SE3Quat & se3)
   return Sophus::SE3d(se3.rotation(), se3.translation());
 }
 
-Optimizer::Optimizer(const cv::Mat K, rclcpp::Logger logger = rclcpp::get_logger("Optimizer"))
-: K_(K), logger_(logger)
+Optimizer::Optimizer(rclcpp::Logger logger) : logger_(logger) {}
+
+void Optimizer::set_camera_params(const cv::Mat & K)
 {
   double fx = K.at<double>(0, 0);
   double fy = K.at<double>(1, 1);
