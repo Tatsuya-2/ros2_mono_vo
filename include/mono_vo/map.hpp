@@ -21,6 +21,8 @@ public:
 
   const Landmark & get_landmark(long id);
 
+  Landmark & get_landmark_ref(long id) { return landmarks_.at(id); }
+
   /**
    * Extracts 2D-3D point correspondences from observations.
    *
