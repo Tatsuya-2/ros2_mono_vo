@@ -82,6 +82,9 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, int local_window_size)
   }
 
   // --- create graph from data
+  cam_params_->setId(0);
+  optimizer.addParameter(cam_params_);
+
   // add keyframe pose vertices
   for (const auto & kf : local_keyframes) {
     auto * v_pose = new g2o::VertexSE3Expmap();
@@ -104,19 +107,21 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, int local_window_size)
   }
 
   // --- add edges (measurements)
+  const float chi2_th_sqrt = std::sqrt(5.991);  // 95% confidence for 2 DoF (u, v)
   for (const auto & kf : local_keyframes) {
     for (const auto & obs : kf->observations) {
-      if (local_landmark_ids.find(obs.landmark_id) != local_landmark_ids.end()) {
-        auto * edge = new g2o::EdgeProjectXYZ2UV();
-        edge->setVertex(0, optimizer.vertex(obs.landmark_id + lm_id_offset));
-        edge->setVertex(1, optimizer.vertex(kf->id));
-        edge->setMeasurement(g2o::Vector2(obs.keypoint.pt.x, obs.keypoint.pt.y));
-        edge->setInformation(Eigen::Matrix2d::Identity());
-        // camera parameters
-        edge->setRobustKernel(new g2o::RobustKernelHuber());
-        edge->robustKernel()->setDelta(1.0);  // pixels
-        optimizer.addEdge(edge);
-      }
+      if (local_landmark_ids.find(obs.landmark_id) == local_landmark_ids.end()) continue;
+
+      auto * edge = new g2o::EdgeProjectXYZ2UV();
+      edge->setVertex(0, optimizer.vertex(obs.landmark_id + lm_id_offset));
+      edge->setVertex(1, optimizer.vertex(kf->id));
+      edge->setMeasurement(g2o::Vector2(obs.keypoint.pt.x, obs.keypoint.pt.y));
+      const float inv_sigma2 = 1.0f / (1 << obs.keypoint.octave);
+      edge->setInformation(Eigen::Matrix2d::Identity() * inv_sigma2);  // noise
+      edge->setRobustKernel(new g2o::RobustKernelHuber());
+      edge->robustKernel()->setDelta(chi2_th_sqrt);  // pixels
+      edge->setParameterId(0, 0);
+      optimizer.addEdge(edge);
     }
   }
 }
