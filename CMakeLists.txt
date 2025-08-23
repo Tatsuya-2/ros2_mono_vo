@@ -14,14 +14,14 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(OpenCV REQUIRED)
-find_package(g2o REQUIRED g2o_core g2o_types_sba g2o_types_slam3d g2o_solver_cholmod)
+find_package(g2o REQUIRED core types_sba types_slam3d solver_cholmod)
 find_package(Sophus REQUIRED)
 
 set(TARGET_NAME mono_vo_component)
 
 add_library(${TARGET_NAME} SHARED src/mono_vo.cpp src/feature_processor.cpp 
 src/frame.cpp src/initializer.cpp src/keyframe.cpp src/landmark.cpp src/map.cpp 
-src/match_data.cpp src/tracker.cpp src/utils.cpp)
+src/match_data.cpp src/tracker.cpp src/utils.cpp src/optimizer.cpp)
 
 target_precompile_headers(${TARGET_NAME} PRIVATE
   <rclcpp/rclcpp.hpp>
