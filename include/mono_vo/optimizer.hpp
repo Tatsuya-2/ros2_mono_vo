@@ -22,7 +22,7 @@ public:
    * @param map The map containing all keyframes and landmarks.
    * @param local_window_size The number of recent keyframes to include in the optimization.
    */
-  void local_bundle_adjustment(Map::Ptr map, int local_window_size = 10);
+  void local_bundle_adjustment(Map::Ptr map, size_t local_window_size = 10);
 
 private:
   cv::Mat K_;

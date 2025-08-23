@@ -1,5 +1,3 @@
-#pragma once
-
 #include "mono_vo/optimizer.hpp"
 
 #include <g2o/core/base_unary_edge.h>
@@ -35,13 +33,13 @@ Optimizer::Optimizer(rclcpp::Logger logger) : logger_(logger) {}
 void Optimizer::set_camera_params(const cv::Mat & K)
 {
   double fx = K.at<double>(0, 0);
-  double fy = K.at<double>(1, 1);
+  // double fy = K.at<double>(1, 1);
   double cx = K.at<double>(0, 2);
   double cy = K.at<double>(1, 2);
   cam_params_ = new g2o::CameraParameters(fx, Eigen::Vector2d(cx, cy), 0);
 }
 
-void Optimizer::local_bundle_adjustment(Map::Ptr map, int local_window_size)
+void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
 {
   // --- Setup optimizer
   g2o::SparseOptimizer optimizer;
