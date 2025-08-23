@@ -85,14 +85,18 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, int local_window_size)
   cam_params_->setId(0);
   optimizer.addParameter(cam_params_);
 
+  std::map<long, g2o::VertexSE3Expmap *> pose_vertices;
+  std::map<long, g2o::VertexPointXYZ *> landmark_vertices;
+
   // add keyframe pose vertices
   for (const auto & kf : local_keyframes) {
     auto * v_pose = new g2o::VertexSE3Expmap();
     v_pose->setId(kf->id);
     v_pose->setEstimate(to_g2o(kf->pose_wc));
     // fix the origin or last keyframe
-    v_pose->setFixed(kf->id == 0 || kf == local_keyframes.back());
+    v_pose->setFixed(kf == local_keyframes.back());
     optimizer.addVertex(v_pose);
+    pose_vertices[kf->id] = v_pose;
   }
 
   // add landmark point vertices
@@ -104,26 +108,54 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, int local_window_size)
     v_point->setEstimate(g2o::Vector3(lm.pose_w.x, lm.pose_w.y, lm.pose_w.z));
     v_point->setMarginalized(true);
     optimizer.addVertex(v_point);
+    landmark_vertices[lm_id] = v_point;
   }
 
   // --- add edges (measurements)
   const float chi2_th_sqrt = std::sqrt(5.991);  // 95% confidence for 2 DoF (u, v)
   for (const auto & kf : local_keyframes) {
     for (const auto & obs : kf->observations) {
+      // Ensure the observed landmark is part of local optimization
       if (local_landmark_ids.find(obs.landmark_id) == local_landmark_ids.end()) continue;
 
       auto * edge = new g2o::EdgeProjectXYZ2UV();
-      edge->setVertex(0, optimizer.vertex(obs.landmark_id + lm_id_offset));
-      edge->setVertex(1, optimizer.vertex(kf->id));
+      edge->setVertex(0, landmark_vertices.at(obs.landmark_id + lm_id_offset));
+      edge->setVertex(1, pose_vertices.at(kf->id));
+
       edge->setMeasurement(g2o::Vector2(obs.keypoint.pt.x, obs.keypoint.pt.y));
       const float inv_sigma2 = 1.0f / (1 << obs.keypoint.octave);
       edge->setInformation(Eigen::Matrix2d::Identity() * inv_sigma2);  // noise
       edge->setRobustKernel(new g2o::RobustKernelHuber());
       edge->robustKernel()->setDelta(chi2_th_sqrt);  // pixels
-      edge->setParameterId(0, 0);
+      edge->setParameterId(0, 0);                    // camera params with id 0
       optimizer.addEdge(edge);
     }
   }
+
+  // --- optimize
+  optimizer.initializeOptimization();
+  optimizer.setVerbose(true);  // for debug
+  optimizer.optimize(10);
+
+  RCLCPP_INFO(logger_, "Optimization finished. Updating map...");
+
+  // --- update keyframes and landmarks
+
+  // update keyframe poses
+  for (auto const & [kf_id, v_pose] : pose_vertices) {
+    const auto & kf = map->get_keyframe(kf_id);
+    if (kf) {
+      kf->pose_wc = to_sophus(v_pose->estimate());
+    }
+  }
+
+  // update landmarks
+  for (auto const & [lm_id, v_point] : landmark_vertices) {
+    auto & lm = map->get_landmark_ref(lm_id);
+    lm.pose_w = cv::Point3f(v_point->estimate()[0], v_point->estimate()[1], v_point->estimate()[2]);
+  }
+
+  RCLCPP_INFO(logger_, "Local map updated after BA.");
 }
 
 }  // namespace mono_vo
