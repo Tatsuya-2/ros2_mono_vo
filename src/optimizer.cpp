@@ -98,6 +98,8 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
     pose_vertices[kf->id] = v_pose;
   }
 
+  RCLCPP_INFO(logger_, "Added %zu keyframe vertices.", pose_vertices.size());
+
   // add landmark point vertices
   const long lm_id_offset = max_kf_id + 1;
   for (const long lm_id : local_landmark_ids) {
@@ -107,8 +109,10 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
     v_point->setEstimate(g2o::Vector3(lm.pose_w.x, lm.pose_w.y, lm.pose_w.z));
     v_point->setMarginalized(true);
     optimizer.addVertex(v_point);
-    landmark_vertices[lm_id] = v_point;
+    landmark_vertices[lm_id + lm_id_offset] = v_point;
   }
+
+  RCLCPP_INFO(logger_, "Added %zu landmark vertices.", landmark_vertices.size());
 
   // --- add edges (measurements)
   const float chi2_th_sqrt = std::sqrt(5.991);  // 95% confidence for 2 DoF (u, v)
@@ -131,6 +135,8 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
     }
   }
 
+  RCLCPP_INFO(logger_, "Added %zu edges.", optimizer.edges().size());
+
   // --- optimize
   optimizer.initializeOptimization();
   optimizer.setVerbose(true);  // for debug
@@ -150,7 +156,7 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
 
   // update landmarks
   for (auto const & [lm_id, v_point] : landmark_vertices) {
-    auto & lm = map->get_landmark_ref(lm_id);
+    auto & lm = map->get_landmark_ref(lm_id - lm_id_offset);
     lm.pose_w = cv::Point3f(v_point->estimate()[0], v_point->estimate()[1], v_point->estimate()[2]);
   }
 
