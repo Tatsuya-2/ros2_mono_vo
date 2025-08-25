@@ -10,7 +10,12 @@ void Map::add_landmark(const Landmark & landmark)
   landmarks_.emplace(landmark.id, landmark);
 }
 
-const Landmark & Map::get_landmark(long id) { return landmarks_.at(id); }
+std::optional<Landmark> Map::get_landmark(long id)
+{
+  auto it = landmarks_.find(id);
+  if (it == landmarks_.end()) return std::nullopt;
+  return it->second;
+}
 
 std::pair<std::vector<cv::Point2f>, std::vector<cv::Point3f>>
 Map::get_observation_to_landmark_point_correspondences(

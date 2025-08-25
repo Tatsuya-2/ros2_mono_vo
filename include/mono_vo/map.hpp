@@ -19,7 +19,7 @@ public:
 
   void add_landmark(const Landmark & landmark);
 
-  const Landmark & get_landmark(long id);
+  std::optional<Landmark> get_landmark(long id);
 
   Landmark & get_landmark_ref(long id) { return landmarks_.at(id); }
 
