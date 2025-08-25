@@ -30,13 +30,16 @@ Sophus::SE3d to_sophus(const g2o::SE3Quat & se3)
 
 Optimizer::Optimizer(rclcpp::Logger logger) : logger_(logger) {}
 
-void Optimizer::set_camera_params(const cv::Mat & K)
+void Optimizer::set_camera_params(const cv::Mat & K) { K_ = K; }
+
+g2o::CameraParameters * Optimizer::create_g2o_camera_params()
 {
-  double fx = K.at<double>(0, 0);
+  double fx = K_.at<double>(0, 0);
   // double fy = K.at<double>(1, 1);
-  double cx = K.at<double>(0, 2);
-  double cy = K.at<double>(1, 2);
-  cam_params_ = new g2o::CameraParameters(fx, Eigen::Vector2d(cx, cy), 0);
+  double cx = K_.at<double>(0, 2);
+  double cy = K_.at<double>(1, 2);
+  auto cam_params = new g2o::CameraParameters(fx, Eigen::Vector2d(cx, cy), 0);
+  return cam_params;
 }
 
 void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
@@ -81,8 +84,9 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
   }
 
   // --- create graph from data
-  cam_params_->setId(0);
-  optimizer.addParameter(cam_params_);
+  auto cam_params = create_g2o_camera_params();
+  cam_params->setId(0);
+  optimizer.addParameter(cam_params);
 
   std::map<long, g2o::VertexSE3Expmap *> pose_vertices;
   std::map<long, g2o::VertexPointXYZ *> landmark_vertices;
@@ -103,13 +107,15 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
   // add landmark point vertices
   const long lm_id_offset = max_kf_id + 1;
   for (const long lm_id : local_landmark_ids) {
-    const auto & lm = map->get_landmark(lm_id);
+    const auto lm_opt = map->get_landmark(lm_id);
+    if (!lm_opt.has_value()) continue;
+    const auto & lm = lm_opt.value();
     auto * v_point = new g2o::VertexPointXYZ();
     v_point->setId(lm_id + lm_id_offset);
     v_point->setEstimate(g2o::Vector3(lm.pose_w.x, lm.pose_w.y, lm.pose_w.z));
     v_point->setMarginalized(true);
     optimizer.addVertex(v_point);
-    landmark_vertices[lm_id + lm_id_offset] = v_point;
+    landmark_vertices[lm_id] = v_point;
   }
 
   RCLCPP_INFO(logger_, "Added %zu landmark vertices.", landmark_vertices.size());
@@ -122,7 +128,7 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
       if (local_landmark_ids.find(obs.landmark_id) == local_landmark_ids.end()) continue;
 
       auto * edge = new g2o::EdgeProjectXYZ2UV();
-      edge->setVertex(0, landmark_vertices.at(obs.landmark_id + lm_id_offset));
+      edge->setVertex(0, landmark_vertices.at(obs.landmark_id));
       edge->setVertex(1, pose_vertices.at(kf->id));
 
       edge->setMeasurement(g2o::Vector2(obs.keypoint.pt.x, obs.keypoint.pt.y));
@@ -156,7 +162,7 @@ void Optimizer::local_bundle_adjustment(Map::Ptr map, size_t local_window_size)
 
   // update landmarks
   for (auto const & [lm_id, v_point] : landmark_vertices) {
-    auto & lm = map->get_landmark_ref(lm_id - lm_id_offset);
+    auto & lm = map->get_landmark_ref(lm_id);
     lm.pose_w = cv::Point3f(v_point->estimate()[0], v_point->estimate()[1], v_point->estimate()[2]);
   }
 

@@ -17,6 +17,8 @@ public:
 
   void set_camera_params(const cv::Mat & K);
 
+  g2o::CameraParameters * create_g2o_camera_params();
+
   /**
    * @brief Performs local bundle adjustment on a window of recent keyframes.
    * @param map The map containing all keyframes and landmarks.
