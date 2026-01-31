@@ -211,10 +211,11 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
     // Extract points for parallax check
     auto [pts_ref_matched, pts_cur_matched] = extract_points_from_matches(all_matches);
 
-    cv::Mat img_matches = utils::draw_matched_points(
-      ref_frame_.image, cur_frame.image, pts_ref_matched, pts_cur_matched);
-    cv::imshow("Matches", img_matches);
-    cv::waitKey(1);
+    // Debug visualization disabled for headless operation
+    // cv::Mat img_matches = utils::draw_matched_points(
+    //   ref_frame_.image, cur_frame.image, pts_ref_matched, pts_cur_matched);
+    // cv::imshow("Matches", img_matches);
+    // cv::waitKey(1);
 
     if (!check_parallax(pts_ref_matched, pts_cur_matched)) {
       RCLCPP_WARN(logger_, "Parallax check failed");
@@ -292,10 +293,11 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
 
     map_->add_keyframe(std::make_shared<KeyFrame>(cur_frame));
 
-    img_matches = utils::draw_matched_points(
-      ref_frame_.image, cur_frame.image, pts_ref_inliers, pts_cur_inliers);
-    cv::imshow("Matches", img_matches);
-    cv::waitKey(1);
+    // Debug visualization disabled for headless operation
+    // img_matches = utils::draw_matched_points(
+    //   ref_frame_.image, cur_frame.image, pts_ref_inliers, pts_cur_inliers);
+    // cv::imshow("Matches", img_matches);
+    // cv::waitKey(1);
 
     ref_frame_ = cur_frame;
     state_ = State::INITIALIZED;
