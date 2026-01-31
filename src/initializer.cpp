@@ -242,6 +242,12 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
       logger_, "Inlier ratio after pose recovery: %lf",
       static_cast<double>(num_inliers) / pts_ref_matched.size());
 
+    // Check if we have enough inliers after pose recovery
+    if (num_inliers < 4) {
+      RCLCPP_WARN(logger_, "Not enough inliers after pose recovery (%d), skipping frame", num_inliers);
+      return std::nullopt;
+    }
+
     // filter points
     std::vector<MatchData> pose_inliers;
     pose_inliers.reserve(cv::countNonZero(inlier_mask_E));
