@@ -4,6 +4,7 @@
 
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <memory>
+#include <mutex>
 #include <nav_msgs/msg/path.hpp>
 #include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -33,6 +34,10 @@ private:
 
   void camera_info_callback(const sensor_msgs::msg::CameraInfo::ConstSharedPtr & msg);
 
+  void odom_timer_callback();
+
+  void publish_odom(const rclcpp::Time & stamp, bool is_valid);
+
 private:
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
@@ -51,6 +56,19 @@ private:
   std::optional<cv::Mat> d_;
 
   nav_msgs::msg::Path path_msg_;
+
+  // Configurable frame IDs
+  std::string odom_frame_id_;
+  std::string odom_child_frame_id_;
+
+  // Odom polling members
+  rclcpp::TimerBase::SharedPtr odom_timer_;
+  std::optional<cv::Affine3d> last_pose_;
+  rclcpp::Time last_valid_pose_stamp_;
+  bool tracking_valid_{false};
+  double odom_publish_rate_{30.0};
+  double position_covariance_growth_rate_{0.1};
+  std::mutex pose_mutex_;
 };
 
 }  // namespace mono_vo

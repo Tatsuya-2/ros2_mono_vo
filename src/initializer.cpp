@@ -266,7 +266,7 @@ std::optional<Frame> Initializer::try_initializing(const Frame & frame, const cv
 
     // add origin keyframe
     KeyFrame::Ptr origin_keyframe =
-      std::make_shared<KeyFrame>(cv::Affine3d(cv::Matx33d::eye(), cv::Vec3d::zeros()));
+      std::make_shared<KeyFrame>(cv::Affine3d(cv::Matx33d::eye(), cv::Vec3d(0, 0, 0)));
     map_->add_keyframe(origin_keyframe);
 
     // set frame pose
